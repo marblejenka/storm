@@ -3,7 +3,7 @@ title: Storm Internal Implementation
 layout: documentation
 documentation: true
 ---
-This section of the wiki is dedicated to explaining how Storm is implemented. You should have a good grasp of how to use Storm before reading these sections. 
+wikiのこのセクションでは、Stormがどのように実装されているかについて説明します。 これらのセクションを読む前に、Stormの使い方をよく理解しておく必要があります。
 
 - [Structure of the codebase](Structure-of-the-codebase.html)
 - [Lifecycle of a topology](Lifecycle-of-a-topology.html)
