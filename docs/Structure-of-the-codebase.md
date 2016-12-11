@@ -3,140 +3,138 @@ title: Structure of the Codebase
 layout: documentation
 documentation: true
 ---
-There are three distinct layers to Storm's codebase.
+Stormのコードベースには3つの独立したレイヤーがあります。
 
-First, Storm was designed from the very beginning to be compatible with multiple languages. Nimbus is a Thrift service and topologies are defined as Thrift structures. The usage of Thrift allows Storm to be used from any language.
+第一に、Stormは最初から複数の言語と互換性があるように設計されていました。NimbusはThriftサービスであり、トポロジはThriftの構造として定義されています。Thriftを使用することによって、Stormはどの言語からでも使用できるようになっています。
 
-Second, all of Storm's interfaces are specified as Java interfaces. So even though there's a lot of Clojure in Storm's implementation, all usage must go through the Java API. This means that every feature of Storm is always available via Java.
+第二に、StormのすべてのインターフェースはJavaのインターフェースとして明示されています。Stormの実装の多くにClojureが使用されていても、すべての使用法はJava APIを経由しなければなりません。 つまり、Stormのすべての機能は常にJava経由で利用できます。
 
-Third, Storm's implementation is largely in Clojure. Line-wise, Storm is about half Java code, half Clojure code. But Clojure is much more expressive, so in reality the great majority of the implementation logic is in Clojure. 
+第3に、Stormの実装は主にClojureにあります。コードの行数では、StormはおおむねJavaのコードの半分、Clojureのコード半分でできています。しかし、Clojureははるかに表現力豊かなので、実際には実装ロジックの大部分がClojureにあります。
 
-The following sections explain each of these layers in more detail.
+以降のセクションでは、これらのレイヤーのそれぞれについて詳しく説明します。
 
 ### storm.thrift
 
-The first place to look to understand the structure of Storm's codebase is the [storm.thrift]({{page.git-blob-base}}/storm-core/src/storm.thrift) file.
+Stormのコードベースの構造を理解するための最初の場所は、[storm.thrift]({{page.git-blob-base}}/storm-core/src/storm.thrift) ファイルです。
 
-Storm uses [this fork](https://github.com/nathanmarz/thrift/tree/storm) of Thrift (branch 'storm') to produce the generated code. This "fork" is actually Thrift 7 with all the Java packages renamed to be `org.apache.thrift7`. Otherwise, it's identical to Thrift 7. This fork was done because of the lack of backwards compatibility in Thrift and the need for many people to use other versions of Thrift in their Storm topologies.
+Stormは、コードを生成するために、Thriftの[フォーク](https://github.com/nathanmarz/thrift/tree/storm)（'storm'ブランチ）を使用します。この "フォーク"は、実際にはThrift 7であり、すべてのJavaパッケージはorg.apache.thrift7という名前に変更されています。 それ以外についてはThrift 7と同じです。このフォークは、Thriftに下位互換性なかったことと、多くの人がStormトポロジで他のバージョンのThriftを使用する必要があったことを理由に行われました。
 
-Every spout or bolt in a topology is given a user-specified identifier called the "component id". The component id is used to specify subscriptions from a bolt to the output streams of other spouts or bolts. A [StormTopology]({{page.git-blob-base}}/storm-core/src/storm.thrift#L91) structure contains a map from component id to component for each type of component (spouts and bolts).
+トポロジ内のすべてのspoutまたはboltには、「コンポーネントID」と呼ばれるユーザー指定の識別子が与えられます。コンポーネントIDは、boltから他のspoutまたはboltの出力ストリームへのサブスクリプションを指定するために使用されます。 [StormTopology]({{page.git-blob-base}}/storm-core/src/storm.thrift#L91) の構造は、コンポーネントIDから、コンポーネントの各タイプ（spoutまたはbolt）への対応付けが含まれています。
 
-Spouts and bolts have the same Thrift definition, so let's just take a look at the [Thrift definition for bolts]({{page.git-blob-base}}/storm-core/src/storm.thrift#L79). It contains a `ComponentObject` struct and a `ComponentCommon` struct.
+spoutとboltはThriftの定義上同一であるため、[Thriftによるboltの定義]({{page.git-blob-base}}/storm-core/src/storm.thrift#L79)を見てみましょう。 それは`ComponentObject`構造体と`ComponentCommon`構造体を含んでいます。
 
-The `ComponentObject` defines the implementation for the bolt. It can be one of three types:
+`ComponentObject`はboltの実装を定義します。 次の3つのタイプのいずれかになります:
 
-1. A serialized java object (that implements [IBolt]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/task/IBolt.java))
-2. A `ShellComponent` object that indicates the implementation is in another language. Specifying a bolt this way will cause Storm to instantiate a [ShellBolt]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/task/ShellBolt.java) object to handle the communication between the JVM-based worker process and the non-JVM-based implementation of the component.
-3. A `JavaObject` structure which tells Storm the classname and constructor arguments to use to instantiate that bolt. This is useful if you want to define a topology in a non-JVM language. This way, you can make use of JVM-based spouts and bolts without having to create and serialize a Java object yourself.
+1. シリアライズされたjavaオブジェクト ([IBolt]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/task/IBolt.java) の実装)
+2. 実装が別の言語であることを示す`ShellComponent`オブジェクト。 このようにボルトを指定すると、Stormは[ShellBolt]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/task/ShellBolt.java)オブジェクトをインスタンス化し、JVMベースのワーカープロセスと非JVMベースのコンポーネント実装間の通信を処理します。
+3. Stormにそのボルトのインスタンス化に使用するクラス名とコンストラクタ引数を伝える`JavaObject`構造体。 これは、非JVM言語でトポロジを定義する場合に便利です。 こうすることで、Javaオブジェクトを自分で作成してシリアライズすることなく、JVMベースのspoutとboltを利用できます。
 
-`ComponentCommon` defines everything else for this component. This includes:
+`ComponentCommon` このコンポーネントのその他すべてを定義します。 以下のものを含みます:
 
-1. What streams this component emits and the metadata for each stream (whether it's a direct stream, the fields declaration)
-2. What streams this component consumes (specified as a map from component_id:stream_id to the stream grouping to use)
-3. The parallelism for this component
-4. The component-specific [configuration](Configuration.html) for this component
+1. このコンポーネントが送出するストリームと各ストリームのメタデータ（直接ストリームであるかフィールド宣言であるか）
+2. このコンポーネントが消費するストリーム（component_id：stream_idから使用するストリームグループへの対応付けとして指定）
+3. このコンポーネントのparallelism
+4. コンポーネント固有の[設定](Configuration.html)
 
-Note that the structure spouts also have a `ComponentCommon` field, and so spouts can also have declarations to consume other input streams. Yet the Storm Java API does not provide a way for spouts to consume other streams, and if you put any input declarations there for a spout you would get an error when you tried to submit the topology. The reason that spouts have an input declarations field is not for users to use, but for Storm itself to use. Storm adds implicit streams and bolts to the topology to set up the [acking framework](https://github.com/apache/storm/wiki/Guaranteeing-message-processing), and two of these implicit streams are from the acker bolt to each spout in the topology. The acker sends "ack" or "fail" messages along these streams whenever a tuple tree is detected to be completed or failed. The code that transforms the user's topology into the runtime topology is located [here]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/common.clj#L279).
+構造体のspoutも `ComponentCommon`フィールドを持っているので、spoutは他の入力ストリームを消費する宣言を持つこともできます。しかし、Storm Java APIでは、スパウトが他のストリームを消費する方法は提供されていません。spoutに何かしらの入力宣言を書くと、トポロジをsubmitしようとしたときにエラーが発生します。 spoutに入力宣言フィールドがある理由は、ユーザーが使用するのではなく、Storm自身が使用するためです。Stormは、[acking framework](https://github.com/apache/storm/wiki/Guaranteeing-message-processing)をセットアップするためにトポロジに暗黙的なストリームとboltを追加します。これら2つの暗黙的なストリームは、acker boltからトポロジ内の各spoutへ接続します。ackerは、tuple treeが完了または失敗したことが検出されるたびに、これらのストリームに "ack"または "fail"メッセージを送信します。 ユーザーのトポロジを実行時のトポロジに変換するコードは、[ここ]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/common.clj#L279)にあります。
 
-### Java interfaces
+### Javaインターフェイス
 
-The interfaces for Storm are generally specified as Java interfaces. The main interfaces are:
+Stormのインターフェースは、通常、Javaインターフェースとして明示されます。 主要なインタフェースは次のとおりです:
 
 1. [IRichBolt](javadocs/org/apache/storm/topology/IRichBolt.html)
 2. [IRichSpout](javadocs/org/apache/storm/topology/IRichSpout.html)
 3. [TopologyBuilder](javadocs/org/apache/storm/topology/TopologyBuilder.html)
 
-The strategy for the majority of the interfaces is to:
+インターフェイスの多くについて、以下の戦略を採っています:
 
-1. Specify the interface using a Java interface
-2. Provide a base class that provides default implementations when appropriate
+1. Javaのinterfaceを使用してインタフェースを明示する
+2. 必要に応じてデフォルトの実装を提供する基本クラスを提供する
 
-You can see this strategy at work with the [BaseRichSpout](javadocs/org/apache/storm/topology/base/BaseRichSpout.html) class.
+この戦略は、[BaseRichSpout](javadocs/org/apache/storm/topology/base/BaseRichSpout.html)クラスで確認できます。
 
-Spouts and bolts are serialized into the Thrift definition of the topology as described above. 
+spoutとboltは、上述のようにトポロジのThrift定義にシリアライズされます。
 
-One subtle aspect of the interfaces is the difference between `IBolt` and `ISpout` vs. `IRichBolt` and `IRichSpout`. The main difference between them is the addition of the `declareOutputFields` method in the "Rich" versions of the interfaces. The reason for the split is that the output fields declaration for each output stream needs to be part of the Thrift struct (so it can be specified from any language), but as a user you want to be able to declare the streams as part of your class. What `TopologyBuilder` does when constructing the Thrift representation is call `declareOutputFields` to get the declaration and convert it into the Thrift structure. The conversion happens [at this portion]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/topology/TopologyBuilder.java#L205) of the `TopologyBuilder` code.
-
+インターフェイスの微妙な側面1つは、`IBolt`、`ISpout`と`IRichBolt`、`IRichSpout`の違いです。それらの主な違いは、インターフェイスの "Rich"バージョンには`declareOutputFields`メソッドが追加されていることです。分割の理由は、各出力ストリームの出力フィールド宣言はThrift構造体の一部である必要がある一方で（したがって、任意の言語から指定できます）、ユーザーとしてはストリームをユーザーのクラスの一部として宣言できるようにするためです。  Thrift表現を構築するときに`TopologyBuilder`が行うのは、`declareOutputFields`を呼び出して宣言を取得し、それをThrift構造体に変換することです。この変換は、`TopologyBuilder`コードの[この部分]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/topology/TopologyBuilder.java#L205)で行われます。
 
 ### Implementation
 
-Specifying all the functionality via Java interfaces ensures that every feature of Storm is available via Java. Moreso, the focus on Java interfaces ensures that the user experience from Java-land is pleasant as well.
+Javaインターフェイス経由ですべての機能を明示することにより、Stormのすべての機能がJavaを介して利用できることを保証しています。Javaインターフェイスに焦点を当てることにより、Javaの世界からのユーザーエクスペリエンスが快適であることを保証します。
 
-The implementation of Storm, on the other hand, is primarily in Clojure. While the codebase is about 50% Java and 50% Clojure in terms of LOC, most of the implementation logic is in Clojure. There are two notable exceptions to this, and that is the [DRPC](https://github.com/apache/storm/wiki/Distributed-RPC) and [transactional topologies](https://github.com/apache/storm/wiki/Transactional-topologies) implementations. These are implemented purely in Java. This was done to serve as an illustration for how to implement a higher level abstraction on Storm. The DRPC and transactional topologies implementations are in the [org.apache.storm.coordination]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/coordination), [org.apache.storm.drpc]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/drpc), and [org.apache.storm.transactional]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/transactional) packages.
+一方、Stormの実装は、主にClojureで行われています。コードベースは行数ではJavaが約50％、Clojureが約50％ですが、実装ロジックのほとんどはClojureにあります。これには2つの注目すべき例外があります。それが[DRPC](https://github.com/apache/storm/wiki/Distributed-RPC)と[トランザクショナルなトポロジ](https://github.com/apache/storm/wiki/Transactional-topologies)の実装です。これらは純粋にJavaで実装されています。これは、Stormでより高いレベルの抽象化を実装するための実例に供するために行われました。DRPCとトランザクショナルなトポロジの実装は、 [org.apache.storm.coordination]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/coordination), [org.apache.storm.drpc]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/drpc), ならびに [org.apache.storm.transactional]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/transactional)パッケージにあります。
 
-Here's a summary of the purpose of the main Java packages and Clojure namespace:
+以下が主なJavaパッケージとClojureネームスペースの目的をまとめたものです:
 
 #### Java packages
 
-[org.apache.storm.coordination]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/coordination): Implements the pieces required to coordinate batch-processing on top of Storm, which both DRPC and transactional topologies use. `CoordinatedBolt` is the most important class here.
+[org.apache.storm.coordination]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/coordination): Stormでバッチ処理を実現するために必要な部分を実装しています。DRPCとトランザクショナルなトポロジの両方が使用しています。ここでは、`CoordinatedBolt`が最も重要なクラスです。
 
-[org.apache.storm.drpc]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/drpc): Implementation of the DRPC higher level abstraction
+[org.apache.storm.drpc]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/drpc): DRPCの高レベルな抽象化の実装
 
-[org.apache.storm.generated]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/generated): The generated Thrift code for Storm (generated using [this fork](https://github.com/nathanmarz/thrift) of Thrift, which simply renames the packages to org.apache.thrift7 to avoid conflicts with other Thrift versions)
+[org.apache.storm.generated]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/generated): 生成されたStorm用のThriftコード（生成されたコードはThriftの[このフォーク](https://github.com/nathanmarz/thrift)を使用して生成されます。単に他のThriftバージョンとの競合を避けるためにパッケージをorg.apache.thrift7にリネームします）
 
-[org.apache.storm.grouping]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/grouping): Contains interface for making custom stream groupings
+[org.apache.storm.grouping]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/grouping): カスタムストリームグループを作成するためのインターフェイスが含まれています
 
-[org.apache.storm.hooks]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/hooks): Interfaces for hooking into various events in Storm, such as when tasks emit tuples, when tuples are acked, etc. User guide for hooks is [here](https://github.com/apache/storm/wiki/Hooks).
+[org.apache.storm.hooks]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/hooks): Stormのさまざまなイベントにフックするためのインターフェース。タスクがタプルを送出するとき、タプルがackされるときなど。フックのユーザガイドは[こちら](https://github.com/apache/storm/wiki/Hooks)です。
 
-[org.apache.storm.serialization]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/serialization): Implementation of how Storm serializes/deserializes tuples. Built on top of [Kryo](http://code.google.com/p/kryo/).
+[org.apache.storm.serialization]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/serialization): タプルのシリアライズ/デシリアライズ方法の実装。[Kryo](http://code.google.com/p/kryo/)の上に構築されています。
 
-[org.apache.storm.spout]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/spout): Definition of spout and associated interfaces (like the `SpoutOutputCollector`). Also contains `ShellSpout` which implements the protocol for defining spouts in non-JVM languages.
+[org.apache.storm.spout]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/spout): spoutとそれに関連するインタフェースの定義（`SpoutOutputCollector `など）。非JVM言語でspoutを定義するためのプロトコルを実装する `ShellSpout`も含まれています。
 
-[org.apache.storm.task]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/task): Definition of bolt and associated interfaces (like `OutputCollector`). Also contains `ShellBolt` which implements the protocol for defining bolts in non-JVM languages. Finally, `TopologyContext` is defined here as well, which is provided to spouts and bolts so they can get data about the topology and its execution at runtime.
+[org.apache.storm.task]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/task): boltとそれに関連するインターフェースの定義（`OutputCollector`など）。また、非JVM言語でボルトを定義するためのプロトコルを実装する `ShellBolt`も含まれています。最後に、`TopologyContext`もここに定義されています。これはspotとboltに提供されており、実行時にトポロジとその実行に関するデータを取得できるようにここで定義されています。
 
-[org.apache.storm.testing]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/testing): Contains a variety of test bolts and utilities used in Storm's unit tests.
+[org.apache.storm.testing]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/testing): Stormのユニットテストに使用するためのさまざまなテスト用のboltとユーティリティが含まれています。
 
-[org.apache.storm.topology]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/topology): Java layer over the underlying Thrift structure to provide a clean, pure-Java API to Storm (users don't have to know about Thrift). `TopologyBuilder` is here as well as the helpful base classes for the different spouts and bolts. The slightly-higher level `IBasicBolt` interface is here, which is a simpler way to write certain kinds of bolts.
+[org.apache.storm.topology]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/topology): 基盤となるThrift構造のJavaレイヤーで、クリーンで純粋なJava APIをStormに提供するためのものです（ユーザーはThriftについて知る必要はありません）。 `TopologyBuilder`は、さまざまなspoutとboltの役に立つ基本クラスと同様にここにあります。若干高いレベルの `IBasicBolt`インターフェースがここにあります。これは、特定の種類のボルトを実装するためのシンプルな方法です。
 
-[org.apache.storm.transactional]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/transactional): Implementation of transactional topologies.
+[org.apache.storm.transactional]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/transactional): トランザクショナルなトポロジの実装です。
 
-[org.apache.storm.tuple]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/tuple): Implementation of Storm's tuple data model.
+[org.apache.storm.tuple]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/tuple): Stormのデータモデルであるタプルについての実装です。
 
-[org.apache.storm.utils]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/tuple): Data structures and miscellaneous utilities used throughout the codebase.
-
+[org.apache.storm.utils]({{page.git-tree-base}}/storm-core/src/jvm/org/apache/storm/tuple): コードベース全体で使用される、データ構造やその他のユーティリティです。
 
 #### Clojure namespaces
 
-[org.apache.storm.bootstrap]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/bootstrap.clj): Contains a helpful macro to import all the classes and namespaces that are used throughout the codebase.
+[org.apache.storm.bootstrap]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/bootstrap.clj): すべてのクラスをインポートするのに役立つマクロや、コードベース全体で使用される名前空間などが含まれています。
 
-[org.apache.storm.clojure]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/clojure.clj): Implementation of the Clojure DSL for Storm.
+[org.apache.storm.clojure]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/clojure.clj): StormのClojure DSLの実装。
 
-[org.apache.storm.cluster]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/cluster.clj): All Zookeeper logic used in Storm daemons is encapsulated in this file. This code manages how cluster state (like what tasks are running where, what spout/bolt each task runs as) is mapped to the Zookeeper "filesystem" API.
+[org.apache.storm.cluster]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/cluster.clj): Stormデーモンで使用されるすべてのZookeeperロジックがこのファイルにカプセル化されています。このコードは、クラスタの状態（どのようなタスクがどこで実行されているか、どのspout/boltがどのタスクのために実行されているか）をZookeeperの"filesystem" APIに対応付けされる方法を管理します。
 
-[org.apache.storm.command.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/command): These namespaces implement various commands for the `storm` command line client. These implementations are very short.
+[org.apache.storm.command.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/command): これらの名前空間は、 `storm`コマンドラインクライアントのためのコマンドを実装しています。これらの実装は非常に短いです。
 
-[org.apache.storm.config]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/config.clj): Implementation of config reading/parsing code for Clojure. Also has utility functions for determining what local path nimbus/supervisor/daemons should be using for various things. e.g. the `master-inbox` function will return the local path that Nimbus should use when jars are uploaded to it.
+[org.apache.storm.config]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/config.clj): Clojureのコード読み取り/解析コードの実装。また、様々な用途で使用されるnimbus/supervisor/daemonsのローカルパスを決定するユーティリティ関数もあります。例えば`master-inbox`関数はjarがアップロードされるときにNimbusが使うべきローカルパスを返します。
 
-[org.apache.storm.daemon.acker]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/acker.clj): Implementation of the "acker" bolt, which is a key part of how Storm guarantees data processing.
+[org.apache.storm.daemon.acker]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/acker.clj): "acker" boltの実装。これはStormがどのようにデータ処理を保証するかの重要な部分です。
 
-[org.apache.storm.daemon.common]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/common.clj): Implementation of common functions used in Storm daemons, like getting the id for a topology based on the name, mapping a user's topology into the one that actually executes (with implicit acking streams and acker bolt added - see `system-topology!` function), and definitions for the various heartbeat and other structures persisted by Storm.
+[org.apache.storm.daemon.common]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/common.clj): Stormデーモンで使用される共通関数の実装で、トポロジの名前からIDを取得したり、ユーザーのトポロジを実際に実行するトポロジにマッピングする（暗黙的なackingストリームとacker boltが追加されました - `system-topology!`関数を参照してください）、さまざまなheartbeatやStormによって永続化されたその他の構造体などの定義などがあります。
 
-[org.apache.storm.daemon.drpc]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/drpc.clj): Implementation of the DRPC server for use with DRPC topologies.
+[org.apache.storm.daemon.drpc]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/drpc.clj): DRPCトポロジで使用するためのDRPCサーバの実装。
 
-[org.apache.storm.daemon.nimbus]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/nimbus.clj): Implementation of Nimbus.
+[org.apache.storm.daemon.nimbus]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/nimbus.clj): Nimbusの実装。
 
-[org.apache.storm.daemon.supervisor]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/supervisor.clj): Implementation of Supervisor.
+[org.apache.storm.daemon.supervisor]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/supervisor.clj): スーパーバイザの実装。
 
-[org.apache.storm.daemon.task]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/task.clj): Implementation of an individual task for a spout or bolt. Handles message routing, serialization, stats collection for the UI, as well as the spout-specific and bolt-specific execution implementations.
+[org.apache.storm.daemon.task]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/task.clj): spoutやboltのなど個々のタスクの実装。メッセージルーティング、シリアライゼーション、UI向けの統計情報の収集、spoutやbolt固有の実行時の処理など。
 
-[org.apache.storm.daemon.worker]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/worker.clj): Implementation of a worker process (which will contain many tasks within). Implements message transferring and task launching.
+[org.apache.storm.daemon.worker]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/daemon/worker.clj): ワーカープロセスの実装（これには多くのタスクが含まれます）。メッセージの転送とタスクの起動を実装しています。
 
-[org.apache.storm.event]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/event.clj): Implements a simple asynchronous function executor. Used in various places in Nimbus and Supervisor to make functions execute in serial to avoid any race conditions.
+[org.apache.storm.event]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/event.clj): シンプルな非同期関数のexecutorを実装しています。NimbusとSupervisorのさまざまな場所で、競合状態を回避するために機能を直列に実行するために使用されます。
 
-[org.apache.storm.log]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/log.clj): Defines the functions used to log messages to log4j.
+[org.apache.storm.log]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/log.clj): log4jにメッセージを記録するための関数を定義しています。
 
-[org.apache.storm.messaging.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/messaging): Defines a higher level interface to implementing point to point messaging. In local mode Storm uses in-memory Java queues to do this; on a cluster, it uses ZeroMQ. The generic interface is defined in protocol.clj.
+[org.apache.storm.messaging.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/messaging): point to pointメッセージングを実装するためのより高いレベルのインタフェースを定義します。ローカルモードでは、Stormはメモリ内のJavaキューを使用してこれを行います。クラスタ上では、ZeroMQを使用します。汎用インタフェースはprotocol.cljで定義されています。
 
-[org.apache.storm.stats]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/stats.clj): Implementation of stats rollup routines used when sending stats to ZK for use by the UI. Does things like windowed and rolling aggregations at multiple granularities.
+[org.apache.storm.stats]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/stats.clj): UIのためにZKに統計情報を送信する際に使用される統計情報をロールアップするルーチンの実装です。ウィンドウやローリング集約を複数の粒度で扱います。
 
-[org.apache.storm.testing]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/testing.clj): Implementation of facilities used to test Storm topologies. Includes time simulation, `complete-topology` for running a fixed set of tuples through a topology and capturing the output, tracker topologies for having fine grained control over detecting when a cluster is "idle", and other utilities.
+[org.apache.storm.testing]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/testing.clj): Stormトポロジのテストに使用される機能の実装。時間をシミュレーションする機能や、トポロジーを介して固定セットのタプルを実行し出力をキャプチャする`complete-topology`、クラスタが「アイドル」のとなった検出を細粒度に制御するためのtrackerトポロジ、およびその他のユーティリティが含まれます。
 
-[org.apache.storm.thrift]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/thrift.clj): Clojure wrappers around the generated Thrift API to make working with Thrift structures more pleasant.
+[org.apache.storm.thrift]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/thrift.clj): Thrift構造をより快適に使用するための、生成されたThrift APIに対するClojureラッパー。
 
-[org.apache.storm.timer]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/timer.clj): Implementation of a background timer to execute functions in the future or on a recurring interval. Storm couldn't use the [Timer](http://docs.oracle.com/javase/1.4.2/docs/api/java/util/Timer.html) class because it needed integration with time simulation in order to be able to unit test Nimbus and the Supervisor.
+[org.apache.storm.timer]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/timer.clj): 未来のタイミング、あるいは定期的に関数を実行するバックグラウンドタイマーの実装。Stormは[Timer](http://docs.oracle.com/javase/1.4.2/docs/api/java/util/Timer.html)クラスを使用できませんでした。なぜならNimbusとSupervisorの単体テストができるようにするには、時間シミュレーションとの統合が必要だったからです。
 
-[org.apache.storm.ui.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/ui): Implementation of Storm UI. Completely independent from rest of code base and uses the Nimbus Thrift API to get data.
+[org.apache.storm.ui.*]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/ui): Storm UIの実装。残りのコードベースとは完全に独立しており、Nimbus Thrift APIを使用してデータを取得します。
 
-[org.apache.storm.util]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/util.clj): Contains generic utility functions used throughout the code base.
+[org.apache.storm.util]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/util.clj): コードベース全体で使用される汎用ユーティリティ関数を含みます。
  
-[org.apache.storm.zookeeper]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/zookeeper.clj): Clojure wrapper around the Zookeeper API and implements some "high-level" stuff like "mkdirs" and "delete-recursive".
+[org.apache.storm.zookeeper]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/zookeeper.clj): ookeeper APIの周りのClojureラッパーで、 "mkdirs"や "delete-recursive"のような "ハイレベル"のものを実装します。
