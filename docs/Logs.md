@@ -3,28 +3,23 @@ title: Storm Logs
 layout: documentation
 documentation: true
 ---
-Logs in Storm are essential for tracking the status, operations, error messages and debug information for all the 
-daemons (e.g., nimbus, supervisor, logviewer, drpc, ui, pacemaker) and topologies' workers.
+Stormのログは、すべてのデーモン（例えば、nimbus, supervisor, logviewer, drpc, ui, pacemaker）およびトポロジのワーカーの状態、操作、エラーメッセージ、およびデバッグ情報を追跡するために不可欠です。
 
 ### Location of the Logs
-All the daemon logs are placed under ${storm.log.dir} directory, which an administrator can set in the System properties or
-in the cluster configuration. By default, ${storm.log.dir} points to ${storm.home}/logs.
+すべてのデーモン・ログは${storm.log.dir}ディレクトリーの下に置かれ、管理者はシステムプロパティまたはクラスター設定で設定できます。デフォルトでは、$ {storm.log.dir}は${storm.home}/logsを指しています。
 
-All the worker logs are placed under the workers-artifacts directory in a hierarchical manner, e.g.,
-${workers-artifacts}/${topologyId}/${port}/worker.log. Users can set the workers-artifacts directory
-by configuring the variable "storm.workers.artifacts.dir". By default, workers-artifacts directory
-locates at ${storm.log.dir}/logs/workers-artifacts.
+すべてのワーカーのログは、${workers-artifacts}/${topologyId}/${port}/worker.logなど、階層的にworkers-artifactsディレクトリの下に置かれます。ユーザーは変数 "storm.workers.artifacts.dir"を設定することによってworkers-artifactsディレクトリを設定できます。デフォルトでは、workers-artifactsディレクトリは${storm.log.dir}/logs/workers-artifactsにあります。
 
 ### Using the Storm UI for Log View/Download and Log Search
-Daemon and worker logs are allowed to view and download through Storm UI by authorized users.
+デーモンとワーカーのログは、認証されたユーザーのみStorm UIを通じて参照およびダウンロードすることができます。
 
-To improve the debugging of Storm, we provide the Log Search feature.
-Log Search supports searching in a certain log file or in all of a topology's log files:
+Stormのデバッグを改善するために、ログ検索機能を提供しています。
+ログ検索機能は、特定のログファイルまたはすべてのトポロジのログファイルの検索をサポートします。
 
-String search in a log file: In the log page for a worker, a user can search a certain string, e.g., "Exception", in a certain worker log. This search can happen for both normal text log or rolled zip log files. In the results, the offset and matched lines will be displayed.
+ログファイル内の文字列検索:このページでは、特定のワーカーログ内の特定の文字列、たとえば「Exception」を検索できます。この検索は、通常のテキストログファイルまたはロールされているzipのログファイルの両方で行われます。結果には、オフセットならびに一致した行が表示されます。
 
 ![Search in a log](images/search-for-a-single-worker-log.png "Search in a log")
 
-Search in a topology: a user can also search a string for a certain topology by clicking the icon of magnifying lens at the top right corner of the UI page. This means the UI will try to search on all the supervisor nodes in a distributed way to find the matched string in all logs for this topology. The search can happen for either normal text log files or rolled zip log files by checking/unchecking the "Search archived logs:" box. Then the matched results can be shown on the UI with url links, directing the user to the certain logs on each supervisor node. This powerful feature is very helpful for users to find certain problematic supervisor nodes running this topology.
+トポロジ内の検索：UIページの右上隅にある拡大レンズのアイコンをクリックすると、特定のトポロジーに対する文字列検索もできます。つまり、UIはすべてのsupervisorを分散方式で検索し、このトポロジにおけるすべてのログで一致する文字列を検索しようとします。検索は、"Search archived logs:"チェックボックスをオンまたはオフにすることで、通常のテキストログファイルまたはロールされているzipのログファイルのいずれかで行われます。次に、一致した結果をURLのリンクとともにUIに表示して、各supervisorの特定のログにユーザを誘導することができます。この強力な機能は、このトポロジを実行している特定の問題のあるsupervisorをユーザが見つけるのに非常に役立ちます。
 
 ![Search in a topology](images/search-a-topology.png "Search in a topology")
