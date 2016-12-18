@@ -4,13 +4,11 @@ layout: documentation
 documentation: true
 ---
 
-This page describes the design and the implementation of the Storm SQL integration.
+このページでは、Storm SQLの設計と実装について説明します。
 
 ## Overview
 
-SQL is a well-adopted yet complicated standard. Several projects including Drill, Hive, Phoenix and Spark have invested significantly in their SQL layers. One of the main design goal of StormSQL is to leverage the existing investments for these projects. StormSQL leverages [Apache Calcite](///calcite.apache.org) to implement the SQL standard. StormSQL focuses on compiling the SQL statements to Storm / Trident topologies so that they can be executed in Storm clusters.
-
-Figure 1 describes the workflow of executing a SQL query in StormSQL. First, users provide a sequence of SQL statements. StormSQL parses the SQL statements and translates them to a Calcite logical plan. A logical plan consists of a sequence of SQL logical operators that describe how the query should be executed irrespective to the underlying execution engines. Some examples of logical operators include `TableScan`, `Filter`, `Projection` and `GroupBy`.
+SQLはよく採用されていますが複雑な標準です。Drill、Hive、Phoenix、Sparkを含むいくつかのプロジェクトは、SQLレイヤーに大きな投資を行っています。StormSQLの主な設計目標の1つは、これらのプロジェクトが行った既存の投資を活用することです。StormSQLは[Apache Calcite](///calcite.apache.org)を活用してSQL標準を実装しています。StormSQLは、SQL文をStorm / Tridentのトポロジへコンパイルすることに注力しており、その実装だけでStormクラスタで実行できるようになります。
 
 <div align="center">
 <img title="Workflow of StormSQL" src="images/storm-sql-internal-workflow.png" style="max-width: 80rem"/>
@@ -18,11 +16,11 @@ Figure 1 describes the workflow of executing a SQL query in StormSQL. First, use
 <p>Figure 1: Workflow of StormSQL.</p>
 </div>
 
-The next step is to compile the logical execution plan down to a physical execution plan. A physical plan consists of physical operators that describes how to execute the SQL query in *StormSQL*. Physical operators such as `Filter`, `Projection`, and `GroupBy` are directly mapped to operations in Trident topologies. StormSQL also compiles expressions in the SQL statements into Java byte codes and plugs them into the Trident topologies.
+次のステップでは、論理実行計画を物理実行計画にコンパイルします。物理計画は、*StormSQL*でSQLクエリを実行する方法を記述する物理演算子で構成されます。`Filter`、`Projection`、`GroupBy`などの物理演算子は、Tridentトポロジの操作に直接的に対応付けされます。StormSQLはまた、SQL文に置ける式をJavaバイトコードにコンパイルし、それらをTridentトポロジにプラグインします。
 
-Finally, StormSQL packages both the Java byte codes and the topology into a JAR and submits it to the Storm cluster. Storm schedules and executes the JAR in the same way of it executes other Storm topologies.
+最後に、StormSQLは、Javaバイトコードとトポロジの両方をJARにパッケージ化し、Stormクラスタに送信します。Stormは他のStormトポロジを実行するのと同じ方法でJARをスケジュールして実行します。
 
-The follow code blocks show an example query that filters and projects results from a Kafka stream.
+以下のコードブロックは、Kafkaのストリームから、結果を抽出・射影するサンプルクエリを示しています。
 
 ```
 CREATE EXTERNAL TABLE ORDERS (ID INT PRIMARY KEY, UNIT_PRICE INT, QUANTITY INT) LOCATION 'kafka://localhost:2181/brokers?topic=orders' ...
@@ -32,7 +30,7 @@ CREATE EXTERNAL TABLE LARGE_ORDERS (ID INT PRIMARY KEY, TOTAL INT) LOCATION 'kaf
 INSERT INTO LARGE_ORDERS SELECT ID, UNIT_PRICE * QUANTITY AS TOTAL FROM ORDERS WHERE UNIT_PRICE * QUANTITY > 50
 ```
 
-The first two SQL statements define the inputs and outputs of external data. Figure 2 describes the processes of how StormSQL takes the last `SELECT` query and compiles it down to Trident topology.
+最初の2つのSQL文は、外部データの入力と出力を定義します。図2は、StormSQLが最後の`SELECT`クエリを受け取り、それをTridentのトポロジにコンパイルするプロセスを示しています。
 
 <div align="center">
 <img title="Compiling the example query to Trident topology" src="images/storm-sql-internal-example.png" style="max-width: 80rem"/>
@@ -43,13 +41,13 @@ The first two SQL statements define the inputs and outputs of external data. Fig
 
 ## Constraints of querying streaming tables
 
-There are several constraints when querying tables that represent a real-time data stream:
+リアルタイムのデータストリームでできているテーブルに対してクエリする場合、いくつかの制約があります。
 
-* The `ORDER BY` clause cannot be applied to a stream.
-* There is at least one monotonic field in the `GROUP BY` clauses to allow StormSQL bounds the size of the buffer.
+* `ORDER BY`節はストリームには適用できません。
+* StormSQLがバッファのサイズを制限できるように、GROUP BY句には少なくとも一つのmonotonicなフィールドが必要です。
 
-For more information please refer to http://calcite.apache.org/docs/stream.html.
+詳細については、 http：//calcite.apache.org/docs/stream.html を参照してください。
 
 ## Dependency
 
-StormSQL does not ship the dependency of the external data sources in the packaged JAR. The users have to provide the dependency in the `extlib` directory of the worker node.
+StormSQLは、パッケージ化されたJARに外部データソースの依存関係を格納しません。ユーザーはワーカーノードの`extlib`ディレクトリに依存関係を提供する必要があります。
