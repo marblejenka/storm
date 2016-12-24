@@ -3,12 +3,12 @@ title: Guaranteeing Message Processing
 layout: documentation
 documentation: true
 ---
-Storm offers several different levels of guaranteed message processing, includeing best effort, at least once, and exactly once through [Trident](Trident-tutorial.html). 
-This page describes how Storm can guarantee at least once processing.
+Stormは、ベストエフォート、at least once、そして[Trident](Trident-tutorial.html)によるexactly onceなど、メッセージ処理の保証レベルをいくつか提供しています。
+このページでは、Stormがat least onceを保証する方法について説明します。
 
 ### What does it mean for a message to be "fully processed"?
 
-A tuple coming off a spout can trigger thousands of tuples to be created based on it. Consider, for example, the streaming word count topology:
+Spoutから流れるタプルは、それに基づいて何千ものタプルを作成するトリガになりえます。たとえば、ストリーミングによるワードカウントをおこなうトポロジを考えてみます。
 
 ```java
 TopologyBuilder builder = new TopologyBuilder();
@@ -22,15 +22,15 @@ builder.setBolt("count", new WordCount(), 20)
         .fieldsGrouping("split", new Fields("word"));
 ```
 
-This topology reads sentences off of a Kestrel queue, splits the sentences into its constituent words, and then emits for each word the number of times it has seen that word before. A tuple coming off the spout triggers many tuples being created based on it: a tuple for each word in the sentence and a tuple for the updated count for each word. The tree of messages looks something like this:
+このトポロジは、Kestrelのキューから文を読み込み、文をその構成要素の単語に分割し、その単語の出現した回数を各単語ごとに出力します。Spoutから流れるタプルは、それに基づいて作成される多くのタプルをトリガします: 文中の各単語のタプルと、各単語の更新された回数のタプルです。メッセージのツリーは次のようになります。
 
 ![Tuple tree](images/tuple_tree.png)
 
-Storm considers a tuple coming off a spout "fully processed" when the tuple tree has been exhausted and every message in the tree has been processed. A tuple is considered failed when its tree of messages fails to be fully processed within a specified timeout. This timeout can be configured on a topology-specific basis using the [Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS](javadocs/org/apache/storm/Config.html#TOPOLOGY_MESSAGE_TIMEOUT_SECS) configuration and defaults to 30 seconds.
+Stormは、タプルツリーが使い果たされ、ツリー内のすべてのメッセージが処理されたときにSpoutから流れてくるタプルを「完全に処理された」とみなします。タプルは、メッセージのツリーが指定されたタイムアウト内で完全に処理されないと失敗したとみなされます。このタイムアウトは、[Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS](javadocs/org/apache/storm/Config.html#TOPOLOGY_MESSAGE_TIMEOUT_SECS)の設定を使用してトポロジー固有に設定でき、デフォルトは30秒です。
 
 ### What happens if a message is fully processed or fails to be fully processed?
 
-To understand this question, let's take a look at the lifecycle of a tuple coming off of a spout. For reference, here is the interface that spouts implement (see the [Javadoc](javadocs/org/apache/storm/spout/ISpout.html) for more information):
+この質問を理解するために、Spuotから流れ出るタプルのライフサイクルを見てみましょう。参考までに、Spuotが実装するインタフェースを以下に示します（詳細は、[Javadoc](javadocs/org/apache/storm/spout/ISpout.html)を参照してください）。
 
 ```java
 public interface ISpout extends Serializable {
@@ -42,21 +42,21 @@ public interface ISpout extends Serializable {
 }
 ```
 
-First, Storm requests a tuple from the `Spout` by calling the `nextTuple` method on the `Spout`. The `Spout` uses the `SpoutOutputCollector` provided in the `open` method to emit a tuple to one of its output streams. When emitting a tuple, the `Spout` provides a "message id" that will be used to identify the tuple later. For example, the `KestrelSpout` reads a message off of the kestrel queue and emits as the "message id" the id provided by Kestrel for the message. Emitting a message to the `SpoutOutputCollector` looks like this:
+まず、Stormは、`Spout`に対して`nextTuple`メソッドを呼び出すことによって、`Spout`にタプルを要求します。`Spout`は、`SpoutOutputCollector`の`open`メソッドを使用して、出力ストリームの1つにタプルを送出します。タプルを送出するとき、`Spout`は後続でタプルを識別するために使われる"メッセージID"を付与します。例えば、`KestrelSpout`は、Kestrelキューからメッセージを読み込み、メッセージのKestrelから提供されたidを「メッセージid」として出力します。`SpoutOutputCollector`にメッセージを送出するところは、次のようになります:
 
 ```java
 _collector.emit(new Values("field1", "field2", 3) , msgId);
 ```
 
-Next, the tuple gets sent to consuming bolts and Storm takes care of tracking the tree of messages that is created. If Storm detects that a tuple is fully processed, Storm will call the `ack` method on the originating `Spout` task with the message id that the `Spout` provided to Storm. Likewise, if the tuple times-out Storm will call the `fail` method on the `Spout`. Note that a tuple will be acked or failed by the exact same `Spout` task that created it. So if a `Spout` is executing as many tasks across the cluster, a tuple won't be acked or failed by a different task than the one that created it.
+次に、タプルはコンシューマであるBoltに送られ、Stormは作成されたメッセージのツリーを追跡します。Stormは、タプルが完全に処理されたことを検出すると、`Spout`というメッセージIDを使用して、元の`Spout`タスクで`ack`メソッドを呼び出します。同様に、タプルがタイムアウトした場合は、Stormが`Spout`の`fail`メソッドを呼び出します。タプルはそれを作成したのとまったく同じ`Spout`タスクによってackされるか、failすることに注意してください。したがって、`Spout`がクラスタ全体で多くのタスクを実行している場合でも、タプルはそれを作成したタスクとは異なるタスクによってackまたはfailすることはありません。
 
-Let's use `KestrelSpout` again to see what a `Spout` needs to do to guarantee message processing. When `KestrelSpout` takes a message off the Kestrel queue, it "opens" the message. This means the message is not actually taken off the queue yet, but instead placed in a "pending" state waiting for acknowledgement that the message is completed. While in the pending state, a message will not be sent to other consumers of the queue. Additionally, if a client disconnects all pending messages for that client are put back on the queue. When a message is opened, Kestrel provides the client with the data for the message as well as a unique id for the message. The `KestrelSpout` uses that exact id as the "message id" for the tuple when emitting the tuple to the `SpoutOutputCollector`. Sometime later on, when `ack` or `fail` are called on the `KestrelSpout`, the `KestrelSpout` sends an ack or fail message to Kestrel with the message id to take the message off the queue or have it put back on.
+メッセージ処理を保証するために`Spout`が何をする必要があるかを見るために`KestrelSpout`をもう一度使ってみましょう。`KestrelSpout`がKestrelキューからメッセージを取り除くと、メッセージを"open"します。実際には、メッセージがまだキューから取り出されているわけではありませんが、メッセージが完了したことを確認するのを待っている"pending"の状態になります。保留中の状態では、キューの他のコンシューマにはメッセージは送信されません。加えて、クライアントがそのクライアントのすべての保留中のメッセージを切断すると、キューに戻されます。メッセージがopenされると、Kestrelはクライアントにメッセージのデータとメッセージの一意のIDを提供します。`KestrelSpout`は、`SpoutOutputCollector`にタプルを送出する際に、そのIDをタプルの "メッセージID"として扱います。その後、`KestrelSpout`で`ack`または`fail`が呼び出されると、`KestrelSpout`はackまたはfailメッセージをメッセージIDと共にKestrelに送り、キューからメッセージを取り除くか、それを元に戻します。
 
 ### What is Storm's reliability API?
 
-There's two things you have to do as a user to benefit from Storm's reliability capabilities. First, you need to tell Storm whenever you're creating a new link in the tree of tuples. Second, you need to tell Storm when you have finished processing an individual tuple. By doing both these things, Storm can detect when the tree of tuples is fully processed and can ack or fail the spout tuple appropriately. Storm's API provides a concise way of doing both of these tasks. 
+Stormの信頼性に関する機能を利用するには、ユーザーとして2つのことを行う必要があります。まず、タプルのツリーに新しいリンクを作成するときは必ずStormに伝える必要があります。次に、個々のタプルの処理が終了したら、Stormに伝える必要があります。これらの両方を実行することで、Stormは、タプルのツリーが完全に処理されたこと、タプルがackまたはfaliしたことを適切に検出することができます。 StormのAPIは、これらのタスクの両方を簡潔に行う方法を提供します。
 
-Specifying a link in the tuple tree is called _anchoring_. Anchoring is done at the same time you emit a new tuple. Let's use the following bolt as an example. This bolt splits a tuple containing a sentence into a tuple for each word:
+タプルツリーにリンクを指定することは_anchoring_と呼ばれています。Anchoringは新しいタプルを発行するのと同時に行われます。例として、次のBoltを使用しましょう。このBoltは、文を含むタプルを各単語のタプルに分割します:
 
 ```java
 public class SplitSentence extends BaseRichBolt {
@@ -80,15 +80,15 @@ public class SplitSentence extends BaseRichBolt {
     }
 ```
 
-Each word tuple is _anchored_ by specifying the input tuple as the first argument to `emit`. Since the word tuple is anchored, the spout tuple at the root of the tree will be replayed later on if the word tuple failed to be processed downstream. In contrast, let's look at what happens if the word tuple is emitted like this:
+それぞれの単語についてのタプルは、`emit`への最初の引数として入力となるタプルを指定することによって_anchored_されます。単語タプルがアンカーされているので、単語のタプルが下流で処failした場合、ツリーのルートにあるタプルが後で再生されます。これとは対照的に、単語タプルが次のように生成されるとどうなるかを見てみましょう:
 
 ```java
 _collector.emit(new Values(word));
 ```
 
-Emitting the word tuple this way causes it to be _unanchored_. If the tuple fails be processed downstream, the root tuple will not be replayed. Depending on the fault-tolerance guarantees you need in your topology, sometimes it's appropriate to emit an unanchored tuple.
+このように単語タプルを発行すると、それは_unanchored_になります。タプルが下流の処理でfailした場合、ルートにあるタプルは再生されません。トポロジに要求するフォールト・トレランスの保証によっては、unanchoredなタプルを発行することが適切な場合もあります。
 
-An output tuple can be anchored to more than one input tuple. This is useful when doing streaming joins or aggregations. A multi-anchored tuple failing to be processed will cause multiple tuples to be replayed from the spouts. Multi-anchoring is done by specifying a list of tuples rather than just a single tuple. For example:
+出力タプルは、ひとつ以上の入力タプルにアンカーできます。これは、ストリーミング結合または集約を実行する場合に便利です。処理が失敗したマルチアンカータプルは、複数のタプルをSpoutからreplayします。マルチアンカリングは、単一のタプルではなくタプルのリストを指定することによって行われます。例えば:
 
 ```java
 List<Tuple> anchors = new ArrayList<Tuple>();
@@ -97,19 +97,20 @@ anchors.add(tuple2);
 _collector.emit(anchors, new Values(1, 2, 3));
 ```
 
-Multi-anchoring adds the output tuple into multiple tuple trees. Note that it's also possible for multi-anchoring to break the tree structure and create tuple DAGs, like so:
+マルチアンカリングは、出力となるタプルを複数のタプルツリーに追加します。マルチアンカリングでツリー構造を破壊し、次のようなタプルのDAGを作成することも可能です:
 
 ![Tuple DAG](images/tuple-dag.png)
 
-Storm's implementation works for DAGs as well as trees (pre-release it only worked for trees, and the name "tuple tree" stuck).
 
-Anchoring is how you specify the tuple tree -- the next and final piece to Storm's reliability API is specifying when you've finished processing an individual tuple in the tuple tree. This is done by using the `ack` and `fail` methods on the `OutputCollector`. If you look back at the `SplitSentence` example, you can see that the input tuple is acked after all the word tuples are emitted.
+Stormの実装は、DAGとツリーにおいて機能します（プレリリース版ではツリーのみ、名前は「タプルツリー」と呼ばれていました）。
 
-You can use the `fail` method on the `OutputCollector` to immediately fail the spout tuple at the root of the tuple tree. For example, your application may choose to catch an exception from a database client and explicitly fail the input tuple. By failing the tuple explicitly, the spout tuple can be replayed faster than if you waited for the tuple to time-out.
+アンカーは、タプルツリーを指定する方法のことです。Stormの信頼性APIの最後の要素は、タプルツリー内の個々のタプルの処理が完了したときの指定です。これは、`OutputCollector`において` ack`と `fail`メソッドを使用することによって行われます。`SplitSentence`の例を振り返ってみると、すべての単語タプルが出力された後に入力タプルが確認されていることが分かります。
 
-Every tuple you process must be acked or failed. Storm uses memory to track each tuple, so if you don't ack/fail every tuple, the task will eventually run out of memory. 
+`OutputCollector`に`fail`メソッドを使うと、Spoutから来たタプルツリーのルートに対して直ちにタプルを失敗させることができます。たとえば、アプリケーションでデータベースクライアントから例外をキャッチした際に、入力となるタプルを明示的に失敗させることもできます。タプルを明示的に失敗させることにより、タプルがタイムアウトするのを待つのよりも速く、送出されたタプルをリプレイさせることができます。
 
-A lot of bolts follow a common pattern of reading an input tuple, emitting tuples based on it, and then acking the tuple at the end of the `execute` method. These bolts fall into the categories of filters and simple functions. Storm has an interface called `BasicBolt` that encapsulates this pattern for you. The `SplitSentence` example can be written as a `BasicBolt` like follows:
+処理するすべてのタプルはackさせるかfailさせる必要があります。Stormはメモリを使用して各タプルを追跡するため、タプルごとにack/failを実行しないと、タスクは最終的にメモリ不足になります。
+
+多くのBoltは、入力タプルを読み込み、それに基づいてタプルを送出し、 `execute`メソッドの終了時にタプルをackするという共通のパターンに従います。これらのBoltは、フィルタとシンプルな機能のカテゴリに分類されます。Stormにはこのパターンをカプセル化する`BasicBolt`というインターフェースがあります。`SplitSentence`の例は次のように`BasicBolt`として書くことができます:
 
 ```java
 public class SplitSentence extends BaseBasicBolt {
@@ -126,56 +127,56 @@ public class SplitSentence extends BaseBasicBolt {
     }
 ```
 
-This implementation is simpler than the implementation from before and is semantically identical. Tuples emitted to `BasicOutputCollector` are automatically anchored to the input tuple, and the input tuple is acked for you automatically when the execute method completes.
+この実装は、前の実装よりも簡単であり、意味的には同じです。`BasicOutputCollector`に送出されたタプルは入力であるタプルに自動的にanchorされ、タプルへのackはexecuteメソッドが完了する際に自動的に実行されます。
 
-In contrast, bolts that do aggregations or joins may delay acking a tuple until after it has computed a result based on a bunch of tuples. Aggregations and joins will commonly multi-anchor their output tuples as well. These things fall outside the simpler pattern of `IBasicBolt`.
+対照的に、集約または結合を行うボルトは、タプルのまとまりに基づいて結果を計算し終わるまで、タプルへのackを遅らせる可能性があります。集約と結合は、一般に複数の出力タプルもanchorします。 これらは`IBasicBolt`が提供する簡単なパターンには当てはまりません。
 
 ### How do I make my applications work correctly given that tuples can be replayed?
 
-As always in software design, the answer is "it depends." If you really want exactly once semantics use the [Trident](Trident-tutorial.html) API. In some cases, like with a lot of analytics, dropping data is OK so disabling the fault tolerance by setting the number of acker bolts to 0 [Config.TOPOLOGY_ACKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_ACKERS).  But in some cases you want to be sure that everything was processed at least once and nothing was dropped.  This is especially useful if all operations are idenpotent or if deduping can happen aferwards.
+ソフトウェア設計における通例通り、答えは「状況による」ということです。exactly onceのセマンティクスが必要なら、[Trident](Trident-tutorial.html) APIを使用してください。場合によっては、分析をおこなうユースケースの大部分と同様に、データをdropすることは問題はになりません。そのような場合は、[Config.TOPOLOGY_ACKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_ACKERS)でackerボルトの数を0に設定してフォールトトレランスを無効にします。しかし、場合によっては、すべてがat least onceで処理され、dropされないことを確認する必要があります。これは、すべての操作が冪等である場合、または重複が後続処理においてのみ発生する可能性がある場合に特に便利です。
 
 ### How does Storm implement reliability in an efficient way?
 
-A Storm topology has a set of special "acker" tasks that track the DAG of tuples for every spout tuple. When an acker sees that a DAG is complete, it sends a message to the spout task that created the spout tuple to ack the message. You can set the number of acker tasks for a topology in the topology configuration using [Config.TOPOLOGY_ACKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_ACKERS). Storm defaults TOPOLOGY_ACKERS to one task per worker.
+Stormのトポロジには、SpoutタプルごとにタプルのDAGを追跡する特別な"acker"タスクが複数あります。ackerは、DAGが完了したことを確認すると、spoutタプルにackメッセージを送信します。 [Config.TOPOLOGY_ACKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_ACKERS)を使用して、トポロジのackerタスクの数を設定できます。Stormのデフォルト設定では、TOPOLOGY_ACKERSをworkerごとに1つのタスクとして割り当てます。
 
-The best way to understand Storm's reliability implementation is to look at the lifecycle of tuples and tuple DAGs. When a tuple is created in a topology, whether in a spout or a bolt, it is given a random 64 bit id. These ids are used by ackers to track the tuple DAG for every spout tuple.
+Stormの信頼性に関する実装を理解する最善の方法は、タプルとタプルが形成するDAGのライフサイクルを調べることです。タプルがトポロジ内に生成された場合、SpoutかBoltかに関わらず、ランダムな64ビットのIDが与えられます。これらのIDは、Spoutタプルごとにタプルが形成するDAGを追跡するためにackerで使用されます。
 
-Every tuple knows the ids of all the spout tuples for which it exists in their tuple trees. When you emit a new tuple in a bolt, the spout tuple ids from the tuple's anchors are copied into the new tuple. When a tuple is acked, it sends a message to the appropriate acker tasks with information about how the tuple tree changed. In particular it tells the acker "I am now completed within the tree for this spout tuple, and here are the new tuples in the tree that were anchored to me". 
+すべてのタプルは、そのタプルツリーに存在するすべてのSpoutタプルのIDを認識します。Boltで新しいタプルを送出すると、そのタプルのanchorからspoutタプルIDが新しいタプルにコピーされます。タプルがackされると、タプルツリーがどのように変更されたかに関する情報とともに適切なackerタスクにメッセージを送信します。特に、ackerに「私は今、このSpoutタプルのツリーにおいて完了しました、そして私にanchorされたツリーの新しいタプルがあります」と伝えます。
 
-For example, if tuples "D" and "E" were created based on tuple "C", here's how the tuple tree changes when "C" is acked: 
+たとえば、タプル"D"と"E"がタプル"C"に基づいて生成されている場合に、"C"がackされるとタプルツリーがどのように変化するかを次に示します:
 
 ![What happens on an ack](images/ack_tree.png)
 
-Since "C" is removed from the tree at the same time that "D" and "E" are added to it, the tree can never be prematurely completed.
+"D"と"E"が追加されるのと同時に"C"がツリーから削除されるので、ツリーが中途半端な状態で完了することはありません。
 
-There are a few more details to how Storm tracks tuple trees. As mentioned already, you can have an arbitrary number of acker tasks in a topology. This leads to the following question: when a tuple is acked in the topology, how does it know to which acker task to send that information? 
+Stormがタプルツリーをどのように追跡するかについて、さらに詳細がいくつかあります。すでに述べたように、トポロジには任意の数のackerタスクを配置できます。これは、次の質問につながります。タプルがトポロジ内でackされたとき、タプルはその情報がどのackerタスクから送信したのかをどのようにして知るのか？
 
-Storm uses mod hashing to map a spout tuple id to an acker task. Since every tuple carries with it the spout tuple ids of all the trees they exist within, they know which acker tasks to communicate with. 
+Stormはmodハッシュを使用してSpoutタプルのIDをackerタスクに対応付けします。すべてのタプルには、そこに存在するすべてのツリーのSpoutタプルIDが含まれているため、どのackerタスクが通信するのかがわかります。
 
-Another detail of Storm is how the acker tasks track which spout tasks are responsible for each spout tuple they're tracking. When a spout task emits a new tuple, it simply sends a message to the appropriate acker telling it that its task id is responsible for that spout tuple. Then when an acker sees a tree has been completed, it knows to which task id to send the completion message.
+Stormのもう1つの詳細は、SpoutタスクがどのSpoutタプルの追跡を担当しているかについて、ackerタスクがどのように追跡しているかです。Spoutタスクが新しいタプルを送出するとき、単に適切なackerに対して、タスクIDがそのSpoutタプルのものであるとするメッセージを送信します。そうすると、ackerは、ツリーが完了したことを確認した際に、どのタスクIDに完了メッセージを送信するべきかを知っていることになります。
 
-Acker tasks do not track the tree of tuples explicitly. For large tuple trees with tens of thousands of nodes (or more), tracking all the tuple trees could overwhelm the memory used by the ackers. Instead, the ackers take a different strategy that only requires a fixed amount of space per spout tuple (about 20 bytes). This tracking algorithm is the key to how Storm works and is one of its major breakthroughs.
+Ackerタスクは、明示的にタプルのツリーを追跡しません。数万（またはそれ以上）のノードを持つ大きなタプルツリーの場合、すべてのタプルツリーを追跡すると、ackerによってメモリが大量に使用される可能性があります。代わりに、ackersはSpoutタプルごとに固定量（約20バイト）のスペースしか必要としない戦略を採用します。この追跡アルゴリズムは、Stormがどのように機能するか、そしてその主要なブレークスルーであることを示す鍵です。
 
-An acker task stores a map from a spout tuple id to a pair of values. The first value is the task id that created the spout tuple which is used later on to send completion messages. The second value is a 64 bit number called the "ack val". The ack val is a representation of the state of the entire tuple tree, no matter how big or how small.  It is simply the xor of all tuple ids that have been created and/or acked in the tree.
+ackerタスクは、SpoutタプルのIDから対をなす値対する対応付けを保持します。値のひとつめは、後で完了メッセージを送信するために使用されるSpoutタプルを生成したタスクIDです。2番目の値は"ack val"と呼ばれる64ビットの数値です。ack valは、大きさにかかわらず、タプルツリー全体の状態を表すものす。これは、単純にツリー内おいて生成ならびにackされた/されなかったすべてのタプルIDのxorです。
 
-When an acker task sees that an "ack val" has become 0, then it knows that the tuple tree is completed. Since tuple ids are random 64 bit numbers, the chances of an "ack val" accidentally becoming 0 is extremely small. If you work the math, at 10K acks per second, it will take 50,000,000 years until a mistake is made. And even then, it will only cause data loss if that tuple happens to fail in the topology.
+ackerタスクは、 "ack val"が0になったことを検知すると、タプルツリーが完了したものとします。タプルIDはランダムな64ビットの数値なので、"acker val"が誤って0になる可能性は極端に低いと言えます。数学的に考えると、1秒間に一万回ackが実行されるとするなら、間違いが起こるまで5千万年かかるでしょう。仮にそうなったとしても、トポロジでタプルがfailした場合にのみデータが失われます。
 
-Now that you understand the reliability algorithm, let's go over all the failure cases and see how in each case Storm avoids data loss:
+信頼性アルゴリズムについて理解していただけたので、すべての失敗が起こりうる事例について説明し、それぞれの場合にStormがデータ損失を回避する方法を見てみましょう:
 
-- **A tuple isn't acked because the task died**: In this case the spout tuple ids at the root of the trees for the failed tuple will time out and be replayed.
-- **Acker task dies**: In this case all the spout tuples the acker was tracking will time out and be replayed.
-- **Spout task dies**: In this case the source that the spout talks to is responsible for replaying the messages. For example, queues like Kestrel and RabbitMQ will place all pending messages back on the queue when a client disconnects.
+- ** タプルを実行するタスクが死んだためにタプルがackされない**：この場合、失敗したタプルにおけるツリーのルートにあるSpoutタプルのIDがタイムアウトしたものとして再送されます。
+- ** Ackerタスクが死んだ **：この場合、ackerが追跡していたすべてのSpoutタプルがタイムアウトして再送されます。
+- ** Spoutタスクが死んだ **：この場合、Spoutが話しているソースがメッセージの再送を行います。たとえば、KestrelやRabbitMQのようなキューは、クライアントの接続が切断されたときに、保留中のすべてのメッセージをキューに戻します。
 
-As you have seen, Storm's reliability mechanisms are completely distributed, scalable, and fault-tolerant. 
+ご覧のとおり、Stormの信頼性メカニズムは完全に分散され、スケーラブルで、フォールトトレラントです。
 
 ### Tuning reliability
 
-Acker tasks are lightweight, so you don't need very many of them in a topology. You can track their performance through the Storm UI (component id "__acker"). If the throughput doesn't look right, you'll need to add more acker tasks. 
+Ackerタスクは軽量であるため、トポロジではあまり多くのAckerタスクを必要としません。Storm UIを使用してパフォーマンスを追跡できます（コンポーネントIDは"__acker"です）。スループットが適正でないと思える場合、より多くのackerタスクを追加する必要があります。
 
-If reliability isn't important to you -- that is, you don't care about losing tuples in failure situations -- then you can improve performance by not tracking the tuple tree for spout tuples. Not tracking a tuple tree halves the number of messages transferred since normally there's an ack message for every tuple in the tuple tree. Additionally, it requires fewer ids to be kept in each downstream tuple, reducing bandwidth usage.
+信頼性が重要でない場合 -- つまり、障害発生時にでタプルを失うことに気にしない場合は、Spoutタプルのタプルツリーを追跡しないことでパフォーマンスを向上させることができます。通常、タプルツリー内のすべてのタプルにackメッセージがあるので、タプルツリーをトラッキングしないことで転送されるメッセージの数が半分になります。加えて、各下流のタプルで保持するID数が少なくなるので、帯域幅の使用量を削減することができます。
 
-There are three ways to remove reliability. The first is to set Config.TOPOLOGY_ACKERS to 0. In this case, Storm will call the `ack` method on the spout immediately after the spout emits a tuple. The tuple tree won't be tracked.
+信頼性を取り除くには3つの方法があります。最初は、Config.TOPOLOGY_ACKERSを0に設定します。この場合、Spoutがタプルを出力した直後に、StormはSpout上で`ack`メソッドを呼び出します。タプルツリーは追跡されません。
 
-The second way is to remove reliability on a message by message basis. You can turn off tracking for an individual spout tuple by omitting a message id in the `SpoutOutputCollector.emit` method.
+2番目の方法は、メッセージ単位で信頼性を取り除くことです。`SpoutOutputCollector.emit`メソッドにおいてメッセージIDを送出しないことで、個々のSpoutタプルのトラッキングをオフにすることができます。
 
-Finally, if you don't care if a particular subset of the tuples downstream in the topology fail to be processed, you can emit them as unanchored tuples. Since they're not anchored to any spout tuples, they won't cause any spout tuples to fail if they aren't acked.
+最後に、トポロジにおける下流のタプルの特定のサブセットについての処理が失敗することを気にしない場合は、それらのタプルをAnchorされていないタプルとして送出できます。SpoutタプルにAnchorされていないので、それらがackされなくともSpoutタプルが失敗することはありません。
