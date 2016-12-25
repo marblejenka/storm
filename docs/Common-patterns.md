@@ -4,7 +4,7 @@ layout: documentation
 documentation: true
 ---
 
-This page lists a variety of common patterns in Storm topologies.
+このページには、Stormトポロジのさまざまな共通パターンが挙げられています。
 
 1. Streaming joins
 2. Batching
@@ -16,9 +16,9 @@ This page lists a variety of common patterns in Storm topologies.
 
 ### Joins
 
-A streaming join combines two or more data streams together based on some common field. Whereas a normal database join has finite input and clear semantics for a join, a streaming join has infinite input and unclear semantics for what a join should be.
+ストリーミング結合は、共通のフィールドに基づいて2つ以上のデータストリームを結合します。通常のデータベースの結合は入力が有限でありクリアなセマンティクスであると言えますが、ストリーミング結合は入力が無限であり不明瞭なセマンティクスであると言えます。
 
-The join type you need will vary per application. Some applications join all tuples for two streams over a finite window of time, whereas other applications expect exactly one tuple for each side of the join for each join field. Other applications may do the join completely differently. The common pattern among all these join types is partitioning multiple input streams in the same way. This is easily accomplished in Storm by using a fields grouping on the same fields for many input streams to the joiner bolt. For example:
+必要な結合の種類は、アプリケーションごとに異なります。一部のアプリケーションは、有限のタイムウィンドウにおいて2つのストリームのすべてのタプルをjoinしますが、他のアプリケーションでは、各結合フィールドの各側にただ1つのタプルを期待してjoinします。さらに他のアプリケーションでは、完全に異なる結合を行いたい場合があります。これらすべての結合タイプ間の共通パターンは、複数の入力ストリームを同じ方法で分割できることです。これは、Stormでは、Joiner Boltへのいくつかの入力ストリームに対して、同じフィールドでFields Groupingを使用することで簡単に実行できます。例えば:
 
 ```java
 builder.setBolt("join", new MyJoiner(), parallelism)
@@ -27,23 +27,23 @@ builder.setBolt("join", new MyJoiner(), parallelism)
   .fieldsGrouping("3", new Fields("joinfield1", "joinfield2"));
 ```
 
-The different streams don't have to have the same field names, of course.
+もちろん、異なるストリームが同じフィールド名を持つ必要はありません。
 
 
 ### Batching
 
-Oftentimes for efficiency reasons or otherwise, you want to process a group of tuples in batch rather than individually. For example, you may want to batch updates to a database or do a streaming aggregation of some sort.
+効率やその他の理由から、タプルのグループを個別に処理するのではなくバッチで処理したいことがよくあります。たとえば、データベースへの更新をバッチ処理したり、ある種のストリーミング集約を実行したいときです。
 
-If you want reliability in your data processing, the right way to do this is to hold on to tuples in an instance variable while the bolt waits to do the batching. Once you do the batch operation, you then ack all the tuples you were holding onto.
+データ処理の信頼性を望む場合、これを行う正しい方法は、バッチ処理を行うのを待っている間にインスタンス変数のタプルを保持することです。一度バッチ処理を実行すると、保持していたすべてのタプルをackできます。
 
-If the bolt emits tuples, then you may want to use multi-anchoring to ensure reliability. It all depends on the specific application. See [Guaranteeing message processing](Guaranteeing-message-processing.html) for more details on how reliability works.
+Boltがタプルを出力する際に、multi-anchoringを使用して信頼性を確保することができます。それはすべてアプリケーション固有の条件に依存します。信頼性の仕組みの詳細については、[メッセージ処理の保証](Guaranteeing-message-processing.html) を参照してください。
 
 ### BasicBolt
-Many bolts follow a similar pattern of reading an input tuple, emitting zero or more tuples based on that input tuple, and then acking that input tuple immediately at the end of the execute method. Bolts that match this pattern are things like functions and filters. This is such a common pattern that Storm exposes an interface called [IBasicBolt](javadocs/org/apache/storm/topology/IBasicBolt.html) that automates this pattern for you. See [Guaranteeing message processing](Guaranteeing-message-processing.html) for more information.
+多くのボルトは、入力タプルを読み取って、その入力タプルに基づいてゼロ個以上のタプルを出力し、次にexecuteメソッドの終了時にその入力タプルを即座にackするという同様のパターンに従います。 このパターンに合ったBoltは、関数やフィルターのようなものです。これは、Stormがこのパターンを自動化する[IBasicBolt](javadocs/org/apache/storm/topology/IBasicBolt.html) というインターフェースで公開しているような共通のパターンです。 詳細については、[メッセージ処理の保証](Guaranteeing-message-processing.html)を参照してください。
 
 ### In-memory caching + fields grouping combo
 
-It's common to keep caches in-memory in Storm bolts. Caching becomes particularly powerful when you combine it with a fields grouping. For example, suppose you have a bolt that expands short URLs (like bit.ly, t.co, etc.) into long URLs. You can increase performance by keeping an LRU cache of short URL to long URL expansions to avoid doing the same HTTP requests over and over. Suppose component "urls" emits short URLS, and component "expand" expands short URLs into long URLs and keeps a cache internally. Consider the difference between the two following snippets of code:
+Stormボルトでキャッシュをメモリ内に保持するのは一般的です。キャッシングは、フィールドのグループ化と組み合わせると特に強力になります。たとえば、短いURL(bit.ly、t.coなど)を長いURLに展開するBoltがあるとします。短いURLから展開された長いURLのLRUキャッシュを保持することによって同じHTTP要求を何度も繰り返さないようにし、パフォーマンスを向上させることができます。コンポーネント"urls"が短いURLを送出し、コンポーネント"expand"が短いURLを長いURLに展開するとともに内部的にキャッシュを保持すると仮定します。以下の2つのコードスニペットの違いを考えてみましょう。
 
 ```java
 builder.setBolt("expand", new ExpandUrl(), parallelism)
@@ -55,13 +55,13 @@ builder.setBolt("expand", new ExpandUrl(), parallelism)
   .fieldsGrouping("urls", new Fields("url"));
 ```
 
-The second approach will have vastly more effective caches, since the same URL will always go to the same task. This avoids having duplication across any of the caches in the tasks and makes it much more likely that a short URL will hit the cache.
+2番目の方法は、同じURLが常に同じタスクになるので、より効果的なキャッシュを実現します。これにより、タスク内のどのキャッシュにおいても重複が起こることがなくなり、短いURLがキャッシュにヒットする可能性が高くなります。
 
 ### Streaming top N
 
-A common continuous computation done on Storm is a "streaming top N" of some sort. Suppose you have a bolt that emits tuples of the form ["value", "count"] and you want a bolt that emits the top N tuples based on count. The simplest way to do this is to have a bolt that does a global grouping on the stream and maintains a list in memory of the top N items.
+Stormで行われる一般的な連続計算は、"streaming top N"的なものです。["value", "count"]という形式のタプルを送出するBoltがあり、カウントに基づいてTop N個のタプルを出力するBoltを必要としているとします。これを行う最も簡単な方法は、ストリーム上でグローバルなグループ化を行い、上位N項目のリストをメモリ内に保持するBoltを持つことです。
 
-This approach obviously doesn't scale to large streams since the entire stream has to go through one task. A better way to do the computation is to do many top N's in parallel across partitions of the stream, and then merge those top N's together to get the global top N. The pattern looks like this:
+このアプローチは、ストリーム全体が1つのタスクを通過しなければならないため、大きなストリームに対応するようスケールさせることはできません。計算を行うより良い方法は、ストリームの複数のパーティションにわたって多数のTop Nを並列に実行し、それらのTop Nを結合してグローバルなTop Nを得ることです。パターンは次のようになります:
 
 ```java
 builder.setBolt("rank", new RankObjects(), parallelism)
@@ -70,9 +70,9 @@ builder.setBolt("merge", new MergeObjects())
   .globalGrouping("rank");
 ```
 
-This pattern works because of the fields grouping done by the first bolt which gives the partitioning you need for this to be semantically correct. You can see an example of this pattern in storm-starter [here]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/RollingTopWords.java).
+このパターンは、最初のBoltによってFields Groupingをしているため、意味的に正しいパーティショニングを行えており、機能します。storm-starterの[これ]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/RollingTopWords.java)でこのパターンの例を見ることができます。 。
 
-If however you have a known skew in the data being processed it can be advantageous to use partialKeyGrouping instead of fieldsGrouping.  This will distribute the load for each key between two downstream bolts instead of a single one.
+ただし、処理中のデータに既知のスキューがある場合は、fieldsGroupingの代わりにpartialKeyGroupingを使用すると便利です。 これにより、1つの下流のBoltの代わりに、2つの下流のBoltに負荷が分散されます。
 
 ```java
 builder.setBolt("count", new CountObjects(), parallelism)
@@ -83,18 +83,18 @@ builder.setBolt("merge", new MergeRanksObjects())
   .globalGrouping("rank");
 ``` 
 
-The topology needs an extra layer of processing to aggregate the partial counts from the upstream bolts but this only processes aggregated values now so the bolt it is not subject to the load caused by the skewed data. You can see an example of this pattern in storm-starter [here]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/SkewedRollingTopWords.java).
+トポロジでは、上流のボルトからの部分カウントを集計するために余分な処理層が必要ですが、これは集計された値を処理するだけなので、Boltはスキューしたデータによる負荷の影響を受けません。storm-starterの[ここ]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/SkewedRollingTopWords.java)でこのパターンの例を見ることができます。 。
 
 ### TimeCacheMap for efficiently keeping a cache of things that have been recently updated
 
-You sometimes want to keep a cache in memory of items that have been recently "active" and have items that have been inactive for some time be automatically expires. [TimeCacheMap](javadocs/org/apache/storm/utils/TimeCacheMap.html) is an efficient data structure for doing this and provides hooks so you can insert callbacks whenever an item is expired.
+直近で"active"だったアイテムをキャッシュに残しておき、しばらくの間アクティブでないアイテムを自動的に期限切れにしたい場合があります。[TimeCacheMap](javadocs/org/apache/storm/utils/TimeCacheMap.html)は、これを行うための効率的なデータ構造であり、アイテムが期限切れになった際のコールバックを挿入できるフックを提供します。
 
 ### CoordinatedBolt and KeyedFairBolt for Distributed RPC
 
-When building distributed RPC applications on top of Storm, there are two common patterns that are usually needed. These are encapsulated by [CoordinatedBolt](javadocs/org/apache/storm/task/CoordinatedBolt.html) and [KeyedFairBolt](javadocs/org/apache/storm/task/KeyedFairBolt.html) which are part of the "standard library" that ships with the Storm codebase.
+Stormの上に分散RPCアプリケーションを構築する場合、通常は2つの共通パターンが必要です。これらはStormのコードベースに同梱されている"標準ライブラリ"の一部である[CoordinatedBolt](javadocs/org/apache/storm/task/CoordinatedBolt.html)と[KeyedFairBolt](javadocs/org/apache/storm/task/KeyedFairBolt.html)でカプセル化されています。
 
-`CoordinatedBolt` wraps the bolt containing your logic and figures out when your bolt has received all the tuples for any given request. It makes heavy use of direct streams to do this.
+`CoordinatedBolt`はロジックを含むBoltをラップし、あなたのBoltが任意のリクエストに対してすべてのタプルを受け取ったときに出力されます。これはDirect Streamを頻繁に使用します。
 
-`KeyedFairBolt` also wraps the bolt containing your logic and makes sure your topology processes multiple DRPC invocations at the same time, instead of doing them serially one at a time.
+`KeyedFairBolt`はロジックを含むBoltをラップし、一度に1つずつ直列に行うのではなく、トポロジが同時に複数のDRPC呼び出しを処理するようにします。
 
-See [Distributed RPC](Distributed-RPC.html) for more details.
+詳細は[Distributed RPC](Distributed-RPC.html)を参照してください。
