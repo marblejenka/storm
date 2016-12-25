@@ -3,9 +3,9 @@ title: Command Line Client
 layout: documentation
 documentation: true
 ---
-This page describes all the commands that are possible with the "storm" command line client. To learn how to set up your "storm" client to talk to a remote cluster, follow the instructions in [Setting up development environment](Setting-up-development-environment.html).
+このページでは、 "storm"コマンドラインクライアントで可能なすべてのコマンドについて説明します。"storm"クライアントを設定してリモートクラスタと通信する方法については、[Setting up development environment](Setting-up-development-environment.html)）の指示に従ってください。
 
-These commands are:
+コマンドは次のとおりです:
 
 1. jar
 1. kill
@@ -41,207 +41,205 @@ These commands are:
 
 Syntax: `storm jar topology-jar-path class ...`
 
-Runs the main method of `class` with the specified arguments. The storm jars and configs in `~/.storm` are put on the classpath. The process is configured so that [StormSubmitter](javadocs/org/apache/storm/StormSubmitter.html) will upload the jar at `topology-jar-path` when the topology is submitted.
+引数に指定された`class`のmainメソッドを実行します。`〜/ .storm`にあるStormのjarと設定はクラスパスに置かれます。このプロセスは、トポロジをsubmitする際に、その設定を使用して[StormSubmitter](javadocs/org/apache/storm/StormSubmitter.html)は`topology-jar-path`にあるjarをアップロードします。
 
 ### kill
 
 Syntax: `storm kill topology-name [-w wait-time-secs]`
 
-Kills the topology with the name `topology-name`. Storm will first deactivate the topology's spouts for the duration of the topology's message timeout to allow all messages currently being processed to finish processing. Storm will then shutdown the workers and clean up their state. You can override the length of time Storm waits between deactivation and shutdown with the -w flag.
+名前が`topology-name`であるトポロジを終了させます。Stormはまず、トポロジのメッセージがタイムアウトになるまでトポロジのスパウトを無効にして、現在処理中のすべてのメッセージの処理が完了するようにします。Stormはワーカーをシャットダウンし、実行状態をクリーンアップします。無効化からシャットダウンまでStormが待機する時間の長さを、-wフラグを使用して上書きできます。
 
 ### activate
 
 Syntax: `storm activate topology-name`
 
-Activates the specified topology's spouts.
+指定されたトポロジのSpoutを有効化します。
 
 ### deactivate
 
 Syntax: `storm deactivate topology-name`
 
-Deactivates the specified topology's spouts.
+指定されたトポロジのSpoutを無効化します。
 
 ### rebalance
 
 Syntax: `storm rebalance topology-name [-w wait-time-secs] [-n new-num-workers] [-e component=parallelism]*`
 
-Sometimes you may wish to spread out where the workers for a topology are running. For example, let's say you have a 10 node cluster running 4 workers per node, and then let's say you add another 10 nodes to the cluster. You may wish to have Storm spread out the workers for the running topology so that each node runs 2 workers. One way to do this is to kill the topology and resubmit it, but Storm provides a "rebalance" command that provides an easier way to do this. 
+トポロジのワーカーが実行されている場所を広げたい場合があります。たとえば、ノードごとに4つのワーカー実行する10ノードのクラスタがあるとし、さらに10ノードをクラスタに追加するとします。各ノードが2つのワーカーを実行するように、Stormは実行中のトポロジを分配することができます。これを行うための1つの方法は、トポロジーを終了して再送信することですが、Stormはこれを行う簡単な方法であるる"rebalance"コマンドを提供します。
 
-Rebalance will first deactivate the topology for the duration of the message timeout (overridable with the -w flag) and then redistribute the workers evenly around the cluster. The topology will then return to its previous state of activation (so a deactivated topology will still be deactivated and an activated topology will go back to being activated).
+リバランスでは、まず、メッセージタイムアウトの期間（-wフラグで上書き可能）だけトポロジを無効にしてから、ワーカーをクラスタ全体に均等に再分配します。その後、トポロジは以前の有効な状態に戻ります（無効化されていたトポロジは無効化されたままで、有効化されていたトポロジは有効な状態に戻ります）。
 
-The rebalance command can also be used to change the parallelism of a running topology. Use the -n and -e switches to change the number of workers or number of executors of a component respectively.
+また、rebalanceコマンドを使用して、実行中のトポロジーのparallelismを変更することもできます。-nおよび-eスイッチを使用して、コンポーネントのワーカー数またはエグゼキュータの数をそれぞれ変更します。
 
 ### repl
 
 Syntax: `storm repl`
 
-Opens up a Clojure REPL with the storm jars and configuration on the classpath. Useful for debugging.
+クラスパス上のStormのjarと設定を使用して、Clojure REPLを開きます。デバッグに便利です。
 
 ### classpath
 
 Syntax: `storm classpath`
 
-Prints the classpath used by the storm client when running commands.
+コマンドを実行するときにStormのクライアントが使用するクラスパスを出力します。
 
 ### localconfvalue
 
 Syntax: `storm localconfvalue conf-name`
 
-Prints out the value for `conf-name` in the local Storm configs. The local Storm configs are the ones in `~/.storm/storm.yaml` merged in with the configs in `defaults.yaml`.
+ローカルにおけるStormの設定で、`conf-name`の値を表示します。ローカルのStormの設定は、`~/.storm/storm.yaml`の設定が`defaults.yaml`の設定とマージされたものです。
 
 ### remoteconfvalue
 
 Syntax: `storm remoteconfvalue conf-name`
 
-Prints out the value for `conf-name` in the cluster's Storm configs. The cluster's Storm configs are the ones in `$STORM-PATH/conf/storm.yaml` merged in with the configs in `defaults.yaml`. This command must be run on a cluster machine.
+クラスタにおけるStormの設定で、`conf-name`の値を表示します。クラスタのStormの設定は`$STORM-PATH/conf/storm.yaml`にあるもので、`defaults.yaml`の設定とマージされています。 このコマンドは、クラスタマシン上で実行する必要があります。
 
 ### nimbus
 
 Syntax: `storm nimbus`
 
-Launches the nimbus daemon. This command should be run under supervision with a tool like [daemontools](http://cr.yp.to/daemontools.html) or [monit](http://mmonit.com/monit/). See [Setting up a Storm cluster](Setting-up-a-Storm-cluster.html) for more information.
+Nimbusデーモンを起動します。このコマンドは、[daemontools](http://cr.yp.to/daemontools.html)や[monit](http://mmonit.com/monit/)のようなツールの監視下で実行する必要があります。詳細は、[Storm clusterの設定](Setting-up-a-Storm-cluster.html)を参照してください。
 
 ### supervisor
 
 Syntax: `storm supervisor`
 
-Launches the supervisor daemon. This command should be run under supervision with a tool like [daemontools](http://cr.yp.to/daemontools.html) or [monit](http://mmonit.com/monit/). See [Setting up a Storm cluster](Setting-up-a-Storm-cluster.html) for more information.
+Supervisorデーモンを起動します。このコマンドは、[daemontools](http://cr.yp.to/daemontools.html)や[monit](http://mmonit.com/monit/)のようなツールの監視下で実行する必要があります。詳細は、[Storm clusterの設定](Setting-up-a-Storm-cluster.html)を参照してください。
 
 ### ui
 
 Syntax: `storm ui`
 
-Launches the UI daemon. The UI provides a web interface for a Storm cluster and shows detailed stats about running topologies. This command should be run under supervision with a tool like [daemontools](http://cr.yp.to/daemontools.html) or [monit](http://mmonit.com/monit/). See [Setting up a Storm cluster](Setting-up-a-Storm-cluster.html) for more information.
+UIデーモンを起動します。UIはStormクラスタのWebインターフェイスを提供し、トポロジの実行に関する詳細な統計情報を表示します。このコマンドは、[daemontools](http://cr.yp.to/daemontools.html)や[monit](http://mmonit.com/monit/)のようなツールの監視下で実行する必要があります。詳細は、[Storm clusterの設定](Setting-up-a-Storm-cluster.html)を参照してください。
 
 ### drpc
 
 Syntax: `storm drpc`
 
-Launches a DRPC daemon. This command should be run under supervision with a tool like [daemontools](http://cr.yp.to/daemontools.html) or [monit](http://mmonit.com/monit/). See [Distributed RPC](Distributed-RPC.html) for more information.
+DRPCデーモンを起動します。 このコマンドは、[daemontools](http://cr.yp.to/daemontools.html)や[monit](http://mmonit.com/monit/)のようなツールの監視下で実行する必要があります。詳細は、[Storm clusterの設定](Setting-up-a-Storm-cluster.html)を参照してください。
 
 ### blobstore
 
-Syntax: `storm blobstore cmd`
+Syntax: `storm  cmd`
 
-list [KEY...] - lists blobs currently in the blob store
+list [KEY...] - blobに現在あるblobをリストします
 
-cat [-f FILE] KEY - read a blob and then either write it to a file, or STDOUT (requires read access).
+cat [-f FILE] KEY - blobを読み込み、それをファイルに書き込むか、STDOUT（読み込みアクセスが必要です）のいずれかに書き込みます。
 
-create [-f FILE] [-a ACL ...] [--replication-factor NUMBER] KEY - create a new blob. Contents comes from a FILE or STDIN. ACL is in the form [uo]:[username]:[r-][w-][a-] can be comma separated list.
+create [-f FILE] [-a ACL ...] [--replication-factor NUMBER] KEY - 新しいblobを作成します。内容はFI​​LEまたはSTDINから与えられます。ACLは[uo]:[username]:[r-][w-][a-]の形式でカンマ区切りリストにすることができます。
 
-update [-f FILE] KEY - update the contents of a blob.  Contents comes from a FILE or STDIN (requires write access).
+update [-f FILE] KEY - blobの内容を更新します。内容はFI​​LEまたはSTDINから与えられます（書き込みアクセスが必要です）。
 
-delete KEY - delete an entry from the blob store (requires write access).
+delete KEY - blobstoreからエントリを削除します（書き込みアクセスが必要です）。
 
-set-acl [-s ACL] KEY - ACL is in the form [uo]:[username]:[r-][w-][a-] can be comma separated list (requires admin access).
+set-acl [-s ACL] KEY - ACLの形式は[uo]:[username]:[r-][w-][a-]で、コンマ区切りリスト（管理者アクセスが必要）です。
 
-replication --read KEY - Used to read the replication factor of the blob.
+replication --read KEY - blobのreplication factorを読み取るために使用されます。
 
-replication --update --replication-factor NUMBER KEY where NUMBER > 0. It is used to update the replication factor of a blob.
+replication --update --replication-factor NUMBER KEY - ここで、NUMBER>0です。これは、blobのreplication factorを更新するために使用されます。
 
-For example, the following would create a mytopo:data.tgz key using the data stored in data.tgz.  User alice would have full access, bob would have read/write access and everyone else would have read access.
+たとえば、次の例では、data.tgzに格納されたデータを使用してmytopo:data.tgzキーを作成します。ユーザーaliceはフルアクセス権を持ち、bobは読み取り/書き込みアクセス権を持ち、他のすべてのユーザーは読み取りアクセス権を持ちます。
 
 storm blobstore create mytopo:data.tgz -f data.tgz -a u:alice:rwa,u:bob:rw,o::r
 
-See [Blobstore(Distcahce)](distcache-blobstore.html) for more information.
+詳細については、[Blobstore(Distcahce)](distcache-blobstore.html)を参照してください。
 
 ### dev-zookeeper
 
 Syntax: `storm dev-zookeeper`
 
-Launches a fresh Zookeeper server using "dev.zookeeper.path" as its local dir and "storm.zookeeper.port" as its port. This is only intended for development/testing, the Zookeeper instance launched is not configured to be used in production.
+"dev.zookeeper.path"をローカルディレクトリとして、"storm.zookeeper.port"をポートとして使用して、新しいZookeeperサーバーを起動します。これは開発/テストのみを目的としており、起動したZookeeperインスタンスは本番環境で使用するように構成されていません。
 
 ### get-errors
 
 Syntax: `storm get-errors topology-name`
 
-Get the latest error from the running topology. The returned result contains the key value pairs for component-name and component-error for the components in error. The result is returned in json format.
+実行中のトポロジから最新のエラーを取得します。返される結果には、コンポーネント名のキー値のペアならびにエラーのあるコンポーネントのエラーが含まれます。結果はjson形式で返されます。
 
 ### heartbeats
 
 Syntax: `storm heartbeats [cmd]`
 
-list PATH - lists heartbeats nodes under PATH currently in the ClusterState.
-get  PATH - Get the heartbeat data at PATH
+list PATH - ClusterStateに現在あるPATHのheartbeats nodesを一覧表示します。
+get  PATH - PATHにあるheartbeat dataを取得します
 
 ### kill_workers
 
 Syntax: `storm kill_workers`
 
-Kill the workers running on this supervisor. This command should be run on a supervisor node. If the cluster is running in secure mode, then user needs to have admin rights on the node to be able to successfully kill all workers.
+このsupervisorで動作するワーカーを停止させます。このコマンドは、supervisorノードで実行する必要があります。クラスタがセキュアモードで実行されている場合、すべてのワーカーを正常に終了させるためには、ノードに対する管理者権限が必要です。
 
 ### list
 
 Syntax: `storm list`
 
-List the running topologies and their statuses.
+実行中のトポロジとその状態を一覧表示します。
 
 ### logviewer
 
 Syntax: `storm logviewer`
 
-Launches the log viewer daemon. It provides a web interface for viewing storm log files. This command should be run under supervision with a tool like daemontools or monit.
+log viewerデーモンを起動します。これは、Stormのログファイルを表示するためのWebインターフェイスを提供します。このコマンドは、daemontoolsやmonitのようなツールを使って監視下で実行する必要があります。
 
-See Setting up a Storm cluster for more information.(http://storm.apache.org/documentation/Setting-up-a-Storm-cluster)
+詳細については、Stormクラスタの設定を参照してください（http://storm.apache.org/documentation/Setting-up-a-Storm-cluster）。
 
 ### monitor
 
 Syntax: `storm monitor topology-name [-i interval-secs] [-m component-id] [-s stream-id] [-w [emitted | transferred]]`
 
-Monitor given topology's throughput interactively.
-One can specify poll-interval, component-id, stream-id, watch-item[emitted | transferred]
-  By default,
-    poll-interval is 4 seconds;
-    all component-ids will be list;
-    stream-id is 'default';
-    watch-item is 'emitted';
+トポロジのスループットをインタラクティブに監視します。
+poll-interval, component-id, stream-id, watch-item[emitted | transferred]を指定できます。
+  デフォルトでは、
+    poll-intervalは4秒です;
+    すべてのコンポーネントIDがリストとして渡されます;
+    stream-id は 'default';
+    watch-item は 'emitted';
 
 ### node-health-check
 
 Syntax: `storm node-health-check`
 
-Run health checks on the local supervisor.
+ローカルにあるsupervisorにヘルスチェックを実行します。
 
 ### pacemaker
 
 Syntax: `storm pacemaker`
 
-Launches the Pacemaker daemon. This command should be run under
-supervision with a tool like daemontools or monit.
+Pacemakerデーモンを起動します。このコマンドは、daemontoolsやmonitのようなツールを使って監視下で実行する必要があります。
 
-See Setting up a Storm cluster for more information.(http://storm.apache.org/documentation/Setting-up-a-Storm-cluster)
+詳細については、Stormクラスタの設定を参照してください（http://storm.apache.org/documentation/Setting-up-a-Storm-cluster）。
 
 ### set_log_level
 
 Syntax: `storm set_log_level -l [logger name]=[log level][:optional timeout] -r [logger name] topology-name`
 
-Dynamically change topology log levels
+トポロジのログレベルを動的に変更します
     
-where log level is one of: ALL, TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFF
-and timeout is integer seconds.
+ログレベルはALL, TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFFのいずれかです
 
 e.g.
   ./bin/storm set_log_level -l ROOT=DEBUG:30 topology-name
 
-  Set the root logger's level to DEBUG for 30 seconds
+  ルートロガーのレベルを30秒間DEBUGに設定する
 
   ./bin/storm set_log_level -l com.myapp=WARN topology-name
 
-  Set the com.myapp logger's level to WARN for 30 seconds
+  com.myappロガーのレベルをWARNに30秒間設定する
 
   ./bin/storm set_log_level -l com.myapp=WARN -l com.myOtherLogger=ERROR:123 topology-name
 
-  Set the com.myapp logger's level to WARN indifinitely, and com.myOtherLogger to ERROR for 123 seconds
+   com.myappロガーのレベルをWARNに設定し、com.myOtherLoggerをERRORに123秒間設定します
 
   ./bin/storm set_log_level -r com.myOtherLogger topology-name
 
-  Clears settings, resetting back to the original level
+  設定を消去し、元のレベルに戻します
 
 ### shell
 
 Syntax: `storm shell resourcesdir command args`
 
-Makes constructing jar and uploading to nimbus for using non JVM languages
+非JVM言語を使用するためにjarを構築し、Nimbusにアップロードします
 
 eg: `storm shell resources/ python topology.py arg1 arg2`
 
@@ -249,21 +247,21 @@ eg: `storm shell resources/ python topology.py arg1 arg2`
 
 Syntax: `storm sql sql-file topology-name`
 
-Compiles the SQL statements into a Trident topology and submits it to Storm.
+SQL文をTridentトポロジにコンパイルし、Stormに送信します。
 
 ### upload-credentials
 
 Syntax: `storm upload_credentials topology-name [credkey credvalue]*`
 
-Uploads a new set of credentials to a running topology
+実行中のトポロジに新しいcredentialの集合をアップロードします。
 
 ### version
 
 Syntax: `storm version`
 
-Prints the version number of this Storm release.
+実行するStormリリースのバージョン番号を表示します。
 
 ### help
 Syntax: `storm help [command]`
 
-Print one help message or list of available commands
+指定されたコマンドのヘルプメッセージまたは利用可能なコマンドのリストを表示する
