@@ -3,28 +3,28 @@ title: Daemon Fault Tolerance
 layout: documentation
 documentation: true
 ---
-Storm has several different daemon processes.  Nimbus that schedules workers, supervisors that launch and kill workers, the log viewer that gives access to logs, and the UI that shows the status of a cluster.
+Stormにはいくつかの異なるデーモンプロセスがあります。 ワーカーをスケジュールするNimbus、ワーカーを起動および停止するsupervisors、ログにアクセスできるlog viewer、およびクラスタのステータスを表示するUIが含まれます。
 
 ## What happens when a worker dies?
 
-When a worker dies, the supervisor will restart it. If it continuously fails on startup and is unable to heartbeat to Nimbus, Nimbus will reschedule the worker.
+ワーカーが死ぬと、supervisorはそれをリスタートします。起動時に連続して失敗し、かつ、Nimbusにハートビートすることができない場合、Nimbusはワーカーを再スケジュールします。
 
 ## What happens when a node dies?
 
-The tasks assigned to that machine will time-out and Nimbus will reassign those tasks to other machines.
+そのマシンに割り当てられたタスクはタイムアウトし、Nimbusはそれらのタスクを他のマシンに再割り当てします。
 
 ## What happens when Nimbus or Supervisor daemons die?
 
-The Nimbus and Supervisor daemons are designed to be fail-fast (process self-destructs whenever any unexpected situation is encountered) and stateless (all state is kept in Zookeeper or on disk). As described in [Setting up a Storm cluster](Setting-up-a-Storm-cluster.html), the Nimbus and Supervisor daemons must be run under supervision using a tool like daemontools or monit. So if the Nimbus or Supervisor daemons die, they restart like nothing happened.
+NimbusデーモンとSupervisorデーモンは、fail-fast（予期せぬ状況に遭遇した場合は自らデストラクトを実行します）、stateless（すべての状態はZookeeperのディスクに保存されます）に設計されています。[Storm clusterの設定](Setting-up-a-Storm-cluster.html)で説明したように、NimbusとSupervisorデーモンは、daemontoolsやmonitのようなツールを使って監視下で実行する必要があります。したがって、NimbusまたはSupervisorのデーモンが死んでも、何もなかったかのように再起動します。
 
-Most notably, no worker processes are affected by the death of Nimbus or the Supervisors. This is in contrast to Hadoop, where if the JobTracker dies, all the running jobs are lost. 
+最も顕著なことに、NimbusやSupervisorが死んでもワーカープロセスには影響しません。これは、JobTrackerが終了すると実行中のジョブがすべて失われるHadoopとは対照的です。
 
 ## Is Nimbus a single point of failure?
 
-If you lose the Nimbus node, the workers will still continue to function. Additionally, supervisors will continue to restart workers if they die. However, without Nimbus, workers won't be reassigned to other machines when necessary (like if you lose a worker machine). 
+あなたがNimbusノードを失った場合出会っても、ワーカーは引き続き機能します。さらに、supervisorはワーカーが死ぬとそれを再開させ続けるでしょう。しかし、Nimbusがなければ、必要な時出会ってもワーカーを他のマシンに割り当て直すことはありません（ワーカーマシンをロストした場合など）。
 
-Storm Nimbus is highly available since 1.0.0. More information please refer to [Nimbus HA Design](nimbus-ha-design.html) document.
+StormのNimbusは、1.0.0以降、HA構成をサポートしています。詳細は[Nimbus HA Design](nimbus-ha-design.html)のドキュメントを参照してください。
 
 ## How does Storm guarantee data processing?
 
-Storm provides mechanisms to guarantee data processing even if nodes die or messages are lost. See [Guaranteeing message processing](Guaranteeing-message-processing.html) for the details.
+Stormは、ノードが消滅したりメッセージが失われてもデータ処理を保証するメカニズムを提供します。詳細については、[メッセージ処理の保証](Guaranteeing-message-processing.html)を参照してください。
