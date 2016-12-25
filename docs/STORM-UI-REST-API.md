@@ -5,45 +5,40 @@ documentation: true
 ---
 
 
-The Storm UI daemon provides a REST API that allows you to interact with a Storm cluster, which includes retrieving
-metrics data and configuration information as well as management operations such as starting or stopping topologies.
-
+Storm UIデーモンには、メトリクスと設定情報の取得、トポロジの開始や停止などの管理操作を含む、
+StormクラスタとやりとりするためのREST APIが用意されています。
 
 # Data format
 
-The REST API returns JSON responses and supports JSONP.
-Clients can pass a callback query parameter to wrap JSON in the callback function.
+REST APIはJSONをレスポンスとし、JSONPをサポートします。
+クライアントは、コールバック関数でJSONをラップするためにコールバックとなるクエリパラメータを渡すことができます。
 
 
 # Using the UI REST API
 
-_Note: It is recommended to ignore undocumented elements in the JSON response because future versions of Storm may not_
-_support those elements anymore._
+_Note: JSONレスポンスの文書化されていない要素は、今後のバージョンのStormではサポートされない可能性があるため、無視することをお勧めします。_
 
 
 ## REST API Base URL
 
-The REST API is part of the UI daemon of Storm (started by `storm ui`) and thus runs on the same host and port as the
-Storm UI (the UI daemon is often run on the same host as the Nimbus daemon).  The port is configured by `ui.port`,
-which is set to `8080` by default (see [defaults.yaml](conf/defaults.yaml)).
+REST APIはStormのUIデーモン(`storm ui`によって開始される)の一部であり、Storm UIと同じホストとポート上で動作します（UIデーモンは多くの場合、Nimbusデーモンと同じホスト上で実行されます）。
+ポートは`ui.port`によって設定され、デフォルトで`8080`に設定されています（[defaults.yaml](conf/defaults.yaml)を参照）。
 
-The API base URL would thus be:
+したがって、APIのベースURLは次のようになります:
 
     http://<ui-host>:<ui-port>/api/v1/...
 
-You can use a tool such as `curl` to talk to the REST API:
+`curl`のようなツールを使ってREST APIと話すことができます:
 
     # Request the cluster configuration.
     # Note: We assume ui.port is configured to the default value of 8080.
     $ curl http://<ui-host>:8080/api/v1/cluster/configuration
 
 ##Impersonating a user in secure environment
-In a secure environment an authenticated user can impersonate another user. To impersonate a user the caller must pass
-`doAsUser` param or header with value set to the user that the request needs to be performed as. Please see SECURITY.MD
-to learn more about how to setup impersonation ACLs and authorization. The rest API uses the same configs and acls that
-are used by nimbus.
+セキュア環境では、認証されたユーザーは別のユーザーを使用することができます。ユーザを偽装するためには、呼び出し側は`doAsUser`パラメータを渡すか、リクエストのヘッダにユーザー情報を設定いする必要があります。
+ACLを偽装する方法とauthorizationを設定する方法の詳細については、SECURITY.MDを参照してください。Rest APIは、Nimbusで使用されているものと同じ設定とACLを使用します。
 
-Examples:
+例:
 
 ```no-highlight
  1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1425844354\?doAsUser=testUSer1
@@ -54,9 +49,9 @@ Examples:
 
 ### /api/v1/cluster/configuration (GET)
 
-Returns the cluster configuration.
+クラスタの設定を返します。
 
-Sample response (does not include all the data fields):
+レスポンスのサンプル（すべてのデータフィールドを含むわけではありません）:
 
 ```json
   {
@@ -82,9 +77,9 @@ Sample response (does not include all the data fields):
 
 ### /api/v1/cluster/summary (GET)
 
-Returns cluster summary information such as nimbus uptime or number of supervisors.
+Nimbusの稼働時間やsupervisorの数などの、クラスタの概要を返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value|Description
 |---	|---	|---
@@ -97,7 +92,7 @@ Response fields:
 |executorsTotal| Integer |Total number of executors|
 |tasksTotal| Integer |Total tasks|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
    {
@@ -113,9 +108,9 @@ Sample response:
 
 ### /api/v1/supervisor/summary (GET)
 
-Returns summary information for all supervisors.
+すべてのスーパーバイザの情報を返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value|Description|
 |---	|---	|---
@@ -130,7 +125,7 @@ Response fields:
 |usedMem| Double| Used memory capacity on this supervisor|
 |usedCpu| Double| Used CPU capacity on this supervisor|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -154,9 +149,9 @@ Sample response:
 
 ### /api/v1/nimbus/summary (GET)
 
-Returns summary information for all nimbus hosts.
+すべてのNimbusホストの概要を返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value|Description|
 |---	|---	|---
@@ -168,7 +163,7 @@ Response fields:
 |nimbusLogLink| String| Logviewer url to view the nimbus.log|
 |version| String| Version of storm this nimbus host is running|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -188,15 +183,15 @@ Sample response:
 
 ### /api/v1/history/summary (GET)
 
-Returns a list of all running topologies' IDs submitted by the current user.
+現在のユーザーが送信したすべての実行中のトポロジIDのリストを返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value | Description|
 |---	|---	|---
 |topo-history| List| List of Topologies' IDs|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -209,9 +204,9 @@ Sample response:
 
 ### /api/v1/topology/summary (GET)
 
-Returns summary information for all topologies.
+すべてのトポロジの概要を返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value | Description|
 |---	|---	|---
@@ -233,7 +228,7 @@ Response fields:
 |assignedTotalMem| Double|Assigned Total Memory by Scheduler (MB)|
 |assignedCpu| Double|Assigned CPU by Scheduler (%)|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -264,16 +259,16 @@ Sample response:
 
 ### /api/v1/topology-workers/:id (GET)
 
-Returns the worker' information (host and port) for a topology.
+トポロジのワーカーについての情報（ホストとポート）を返します。
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value | Description|
 |---	|---	|---
 |hostPortList| List| Workers' information for a topology|
 |name| Integer| Logviewer Port|
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -297,9 +292,9 @@ Sample response:
 
 ### /api/v1/topology/:id (GET)
 
-Returns topology information and statistics.  Substitute id with topology id.
+トポロジ情報と統計情報を返します。idはトポロジIDに置き換えます。
 
-Request parameters:
+リクエストパラメータ:
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
@@ -308,7 +303,7 @@ Request parameters:
 |sys       |String. Values 1 or 0. Default value 0| Controls including sys stats part of the response|
 
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |---	|---	|---
@@ -358,7 +353,7 @@ Response fields:
 |bolts.emitted| Long |Number of tuples emitted|
 |replicationCount| Integer |Number of nimbus hosts on which this topology code is replicated|
 
-Examples:
+例:
 
 ```no-highlight
  1. http://ui-daemon-host-name:8080/api/v1/topology/WordCount3-1-1402960825
@@ -366,7 +361,7 @@ Examples:
  3. http://ui-daemon-host-name:8080/api/v1/topology/WordCount3-1-1402960825?window=600
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
  {
@@ -513,7 +508,7 @@ Sample response:
 
 ### /api/v1/topology/:id/component/:component (GET)
 
-Returns detailed metrics and executor information
+メトリクスとエグゼキュータの詳細な情報を返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
@@ -522,7 +517,7 @@ Returns detailed metrics and executor information
 |window    |String. Default value :all-time| window duration for metrics in seconds|
 |sys       |String. Values 1 or 0. Default value 0| controls including sys stats part of the response|
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |---	|---	|---
@@ -560,7 +555,7 @@ Response fields:
 |profilerActive| Array |Array of currently active Profiler Actions|
 
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/WordCount3-1-1402960825/component/spout
@@ -568,7 +563,7 @@ Examples:
 3. http://ui-daemon-host-name:8080/api/v1/topology/WordCount3-1-1402960825/component/spout?window=600
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -727,7 +722,7 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/start/:host-port/:timeout (GET)
 
-Request to start profiler on worker with timeout. Returns status and link to profiler artifacts for worker.
+ワーカーに対してタイムアウト付きでプロファイラを開始するようリクエストします。ワーカーのステータスとプロファイラ成果物へのリンクを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
@@ -735,7 +730,7 @@ Request to start profiler on worker with timeout. Returns status and link to pro
 |host-port |String (required)| Worker Id |
 |timeout |String (required)| Time out for profiler to stop in minutes |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
@@ -744,7 +739,7 @@ Response fields:
 |timeout | String | Requested timeout
 |dumplink | String | Link to logviewer URL for worker profiler documents.|
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/start/10.11.1.7:6701/10
@@ -752,7 +747,7 @@ Examples:
 3. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/start/10.11.1.7:6701/20
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -765,27 +760,27 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/dumpprofile/:host-port (GET)
 
-Request to dump profiler recording on worker. Returns status and worker id for the request.
+ワーカーにプロファイラの記録をダンプするリクエストをします。リクエストに対するステータスとワーカーIDを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |host-port |String (required)| Worker Id |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
 |id   | String | Worker id|
 |status | String | Response Status |
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/dumpprofile/10.11.1.7:6701
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -796,27 +791,27 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/stop/:host-port (GET)
 
-Request to stop profiler on worker. Returns status and worker id for the request.
+ワーカーにプロファイラを停止するようリクエストします。リクエストに対するステータスとワーカーIDを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |host-port |String (required)| Worker Id |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
 |id   | String | Worker id|
 |status | String | Response Status |
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/stop/10.11.1.7:6701
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -827,27 +822,27 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/dumpjstack/:host-port (GET)
 
-Request to dump jstack on worker. Returns status and worker id for the request.
+ワーカーにjstackをダンプするようリクエストします。リクエストに対するステータスとワーカーIDを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |host-port |String (required)| Worker Id |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
 |id   | String | Worker id|
 |status | String | Response Status |
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/dumpjstack/10.11.1.7:6701
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -858,27 +853,27 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/dumpheap/:host-port (GET)
 
-Request to dump heap (jmap) on worker. Returns status and worker id for the request.
+ワーカーにヒープ（jmap）をダンプするようリクエストします。リクエストに対するステータスとワーカーIDを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |host-port |String (required)| Worker Id |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
 |id   | String | Worker id|
 |status | String | Response Status |
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/dumpheap/10.11.1.7:6701
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -889,27 +884,27 @@ Sample response:
 
 ###  /api/v1/topology/:id/profiling/restartworker/:host-port (GET)
 
-Request to request the worker. Returns status and worker id for the request.
+ワーカーの再起動をリクエストします。リクエストに対するのステータスとワーカーIDを返します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |host-port |String (required)| Worker Id |
 
-Response fields:
+レスポンスフィールド:
 
 |Field  |Value |Description|
 |-----	|----- |-----------|
 |id   | String | Worker id|
 |status | String | Response Status |
 
-Examples:
+例:
 
 ```no-highlight
 1. http://ui-daemon-host-name:8080/api/v1/topology/wordcount-1-1446614150/profiling/restartworker/10.11.1.7:6701
 ```
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
@@ -922,13 +917,13 @@ Sample response:
 
 ### /api/v1/topology/:id/activate (POST)
 
-Activates a topology.
+トポロジを有効化します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 
-Sample Response:
+レスポンスのサンプル:
 
 ```json
 {"topologyOperation":"activate","topologyId":"wordcount-1-1420308665","status":"success"}
@@ -937,13 +932,13 @@ Sample Response:
 
 ### /api/v1/topology/:id/deactivate (POST)
 
-Deactivates a topology.
+トポロジを無効化します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 
-Sample Response:
+レスポンスのサンプル:
 
 ```json
 {"topologyOperation":"deactivate","topologyId":"wordcount-1-1420308665","status":"success"}
@@ -952,7 +947,7 @@ Sample Response:
 
 ### /api/v1/topology/:id/rebalance/:wait-time (POST)
 
-Rebalances a topology.
+トポロジをリバランスします。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
@@ -960,14 +955,13 @@ Rebalances a topology.
 |wait-time |String (required)| Wait time before rebalance happens |
 |rebalanceOptions| Json (optional) | topology rebalance options |
 
-
-Sample rebalanceOptions json:
+JSONによるrebalanceOptionsオプションのサンプル:
 
 ```json
 {"rebalanceOptions" : {"numWorkers" : 2, "executors" : {"spout" :4, "count" : 10}}, "callback" : "foo"}
 ```
 
-Examples:
+例:
 
 ```no-highlight
 curl  -i -b ~/cookiejar.txt -c ~/cookiejar.txt -X POST  
@@ -976,7 +970,7 @@ curl  -i -b ~/cookiejar.txt -c ~/cookiejar.txt -X POST
 http://localhost:8080/api/v1/topology/wordcount-1-1420308665/rebalance/0
 ```
 
-Sample Response:
+レスポンスのサンプル:
 
 ```json
 {"topologyOperation":"rebalance","topologyId":"wordcount-1-1420308665","status":"success"}
@@ -986,18 +980,17 @@ Sample Response:
 
 ### /api/v1/topology/:id/kill/:wait-time (POST)
 
-Kills a topology.
+トポロジを停止します。
 
 |Parameter |Value   |Description  |
 |----------|--------|-------------|
 |id   	   |String (required)| Topology Id  |
 |wait-time |String (required)| Wait time before rebalance happens |
 
-Caution: Small wait times (0-5 seconds) may increase the probability of triggering the bug reported in
-[STORM-112](https://issues.apache.org/jira/browse/STORM-112), which may result in broker Supervisor
-daemons.
+注意: 小さな待機時間(0-5 seconds)は[STORM-112](https://issues.apache.org/jira/browse/STORM-112)で報告されたバグをトリガする可能性を高め、
+ブローカスーパーバイザデーモンが発生する可能性があります。
 
-Sample Response:
+レスポンスのサンプル:
 
 ```json
 {"topologyOperation":"kill","topologyId":"wordcount-1-1420308665","status":"success"}
@@ -1005,9 +998,9 @@ Sample Response:
 
 ## API errors
 
-The API returns 500 HTTP status codes in case of any errors.
+エラーが発生した場合、APIは500のHTTPステータスコードを返します。
 
-Sample response:
+レスポンスのサンプル:
 
 ```json
 {
