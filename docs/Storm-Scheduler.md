@@ -4,15 +4,15 @@ layout: documentation
 documentation: true
 ---
 
-Storm now has 4 kinds of built-in schedulers: [DefaultScheduler]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/scheduler/DefaultScheduler.clj), [IsolationScheduler]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/scheduler/IsolationScheduler.clj), [MultitenantScheduler]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/scheduler/multitenant/MultitenantScheduler.java), [ResourceAwareScheduler](Resource_Aware_Scheduler_overview.html). 
+Stormには4種類の組み込みスケジューラがあります: [DefaultScheduler]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/scheduler/DefaultScheduler.clj), [IsolationScheduler]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/scheduler/IsolationScheduler.clj), [MultitenantScheduler]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/scheduler/multitenant/MultitenantScheduler.java), [ResourceAwareScheduler](Resource_Aware_Scheduler_overview.html). 
 
 ## Pluggable scheduler
-You can implement your own scheduler to replace the default scheduler to assign executors to workers. You configure the class to use  the "storm.scheduler" config in your storm.yaml, and your scheduler must implement the  [IScheduler]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/scheduler/IScheduler.java) interface.
+エグゼキュータをワーカーに割り当てるために、独自のスケジューラを実装してデフォルトのスケジューラを置き換えることができます。storm.yamlで"storm.scheduler"に使用したいクラスを設定します。また、スケジューラは[IScheduler]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/scheduler/IScheduler.java)インターフェイスを実装する必要があります。
 
 ## Isolation Scheduler
-The isolation scheduler makes it easy and safe to share a cluster among many topologies. The isolation scheduler lets you specify which topologies should be "isolated", meaning that they run on a dedicated set of machines within the cluster where no other topologies will be running. These isolated topologies are given priority on the cluster, so resources will be allocated to isolated topologies if there's competition with non-isolated topologies, and resources will be taken away from non-isolated topologies if necessary to get resources for an isolated topology. Once all isolated topologies are allocated, the remaining machines on the cluster are shared among all non-isolated topologies.
+Isolation Schedulerを使用すると、多くのトポロジ間でクラスタを簡単かつ安全に共有できます。Isolation Schedulerでは「隔離」すべきトポロジを指定します。つまり、隔離されたトポロジは他のトポロジが実行されていないクラスタ内の専用マシン上で実行されます。これらの隔離されたトポロジはクラスタ上で優先されるため、隔離されていないトポロジと競合する場合はリソースが隔離されたトポロジに割り当てられ、隔離トポロジがリソースを取得する場合は非隔離トポロジの分から取得します。すべての隔離トポロジが割り当てられると、クラスタ上の残りのマシンはすべての非隔離トポロジで共有されます。
 
-You can configure the isolation scheduler in the Nimbus configuration by setting "storm.scheduler" to "org.apache.storm.scheduler.IsolationScheduler". Then, use the "isolation.scheduler.machines" config to specify how many machines each topology should get. This configuration is a map from topology name to the number of isolated machines allocated to this topology. For example:
+Isolation Schedulerを設定するには、Nimbusの"storm.scheduler"を"org.apache.storm.scheduler.IsolationScheduler"に設定します。次に、"isolation.scheduler.machines"設定を使用して、各トポロジが取得できるマシンの数を指定します。この設定は、トポロジ名とトポロジに割り当てられた独立したマシンの数の対応付けです。例えば:
 
 ```
 isolation.scheduler.machines: 
@@ -21,7 +21,7 @@ isolation.scheduler.machines:
     "some-other-topology": 3
 ```
 
-Any topologies submitted to the cluster not listed there will not be isolated. Note that there is no way for a user of Storm to affect their isolation settings – this is only allowed by the administrator of the cluster (this is very much intentional).
+クラスタに送信されたトポロジはで、ここにリストされていないものは隔離されません。Stormのユーザーが隔離設定に影響を及ぼす方法はないことに注意してください。これはクラスタの管理者だけに許可されています（意図的にそうなっています）。
 
-The isolation scheduler solves the multi-tenancy problem – avoiding resource contention between topologies – by providing full isolation between topologies. The intention is that "productionized" topologies should be listed in the isolation config, and test or in-development topologies should not. The remaining machines on the cluster serve the dual role of failover for isolated topologies and for running the non-isolated topologies.
+Isolation Schedulerは、トポロジを完全に隔離することで、マルチテナント問題（トポロジ間のリソース競合を回避する）を解決します。テストまたは開発中のトポロジではなく、"本番用の"トポロジを隔離設定にリストすることを意図しています。クラスタ上の残りのマシンは、隔離トポロジのfailoverとしての役割と、隔離されていないトポロジを実行する役割の二つを果たします。
 
