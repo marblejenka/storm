@@ -5,53 +5,52 @@ documentation: true
 ---
 ## What makes a running topology: worker processes, executors and tasks
 
-Storm distinguishes between the following three main entities that are used to actually run a topology in a Storm cluster:
+Stormは、Stormクラスタで実際にトポロジを実行するために使用される、次の3つの主なエンティティを区別します。
 
-1. Worker processes
-2. Executors (threads)
-3. Tasks
+1. ワーカープロセス
+2. エグゼキュータ（スレッド）
+3. タスク
 
-Here is a simple illustration of their relationships:
+以下が、それらの関係を単純に図示したものです:
 
 ![The relationships of worker processes, executors (threads) and tasks in Storm](images/relationships-worker-processes-executors-tasks.png)
 
-A _worker process_ executes a subset of a topology. A worker process belongs to a specific topology and may run one or more executors for one or more components (spouts or bolts) of this topology. A running topology consists of many such processes running on many machines within a Storm cluster.
+_ワーカープロセス_は、トポロジのサブセットを実行します。ワーカープロセスは特定のトポロジに属し、このトポロジの1つまたは複数のコンポーネント（SpoutまたはBolt）に対して1つまたは複数のエグゼキュータを実行できます。実行中のトポロジは、Stormクラスタ内の多くのマシンで実行されている多くのプロセスで構成されています。
 
-An _executor_ is a thread that is spawned by a worker process. It may run one or more tasks for the same component (spout or bolt).
+_エグゼキュータ_は、ワーカープロセスによって生成されるスレッドです。同じコンポーネント（SpoutまたはBolt）に対して1つ以上のタスクを実行することがあります。
 
-A _task_ performs the actual data processing — each spout or bolt that you implement in your code executes as many tasks across the cluster. The number of tasks for a component is always the same throughout the lifetime of a topology, but the number of executors (threads) for a component can change over time. This means that the following condition holds true: ``#threads ≤ #tasks``. By default, the number of tasks is set to be the same as the number of executors, i.e. Storm will run one task per thread.
+_タスク_は、実際のデータ処理を実行します - アプリケーションコードで実装するSpoutまたはBoltは、クラスタ全体で多くのタスクを実行します。コンポーネントのタスクの数は、トポロジの生存期間を通じて常に同じですが、コンポーネントのエグゼキュータ（スレッド）の数は時間とともに変化します。これは、次の条件が当てはまることを意味します: ``#threads ≤ #tasks``。デフォルトでは、タスクの数はエグゼキュータの数と同じに設定されます。つまり、Stormはスレッドごとに1つのタスクを実行します。
 
 ## Configuring the parallelism of a topology
 
-Note that in Storm’s terminology "parallelism" is specifically used to describe the so-called _parallelism hint_, which means the initial number of executor (threads) of a component. In this document though we use the term "parallelism" in a more general sense to describe how you can configure not only the number of executors but also the number of worker processes and the number of tasks of a Storm topology. We will specifically call out when "parallelism" is used in the normal, narrow definition of Storm.
+Stormの用語では、"parallelism"とは、コンポーネントのエグゼキュータ（スレッド）の初期数を意味し、いわゆる_parallelism hint_と呼ばれるものを記述するために使用されることに注意してください。このドキュメントでは、エグゼキュータの数だけでなく、ワーカープロセスの数とStormトポロジのタスク数を設定する方法を説明するために、より一般的な意味で"parallelism"という用語を使用します。Stormの狭義の"parallelism"を使用する場合、特に断りを入れます。
 
-The following sections give an overview of the various configuration options and how to set them in your code. There is more than one way of setting these options though, and the table lists only some of them. Storm currently has the following [order of precedence for configuration settings](Configuration.html): ``defaults.yaml`` < ``storm.yaml`` < topology-specific configuration < internal component-specific configuration < external component-specific configuration.
+以下のセクションでは、さまざまな設定オプションの概要と、それらをコードで設定する方法について説明します。これらのオプションを設定する方法は複数ありますが、表の中にはそれらのオプションのうちのいくつかしか示していません。Stormは今のところ、以下の[設定の優先順位](Configuration.html)を持っています: ``defaults.yaml`` < ``storm.yaml`` < トポロジ固有の設定 < 内部的なコンポーネント固有の設定 < 外部的なコンポーネント固有の設定。
 
 ### Number of worker processes
 
-* Description: How many worker processes to create _for the topology_ across machines in the cluster.
-* Configuration option: [TOPOLOGY_WORKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_WORKERS)
-* How to set in your code (examples):
+* 説明: クラスタのマシンで_トポロジ_を生成するワーカープロセスの数。
+* 設定オプション: [TOPOLOGY_WORKERS](javadocs/org/apache/storm/Config.html#TOPOLOGY_WORKERS)
+* あなたのコードで設定する方法（例）:
     * [Config#setNumWorkers](javadocs/org/apache/storm/Config.html)
 
 ### Number of executors (threads)
 
-* Description: How many executors to spawn _per component_.
-* Configuration option: None (pass ``parallelism_hint`` parameter to ``setSpout`` or ``setBolt``)
-* How to set in your code (examples):
+* 説明: _コンポーネントごとに_いくつのエグゼキュータを生成するか指定します。
+* 設定オプション: なし(``setSpout``または``setBolt``に``parallelism_hint``パラメータを渡します)
+* あなたのコードで設定する方法（例）:
     * [TopologyBuilder#setSpout()](javadocs/org/apache/storm/topology/TopologyBuilder.html)
     * [TopologyBuilder#setBolt()](javadocs/org/apache/storm/topology/TopologyBuilder.html)
-    * Note that as of Storm 0.8 the ``parallelism_hint`` parameter now specifies the initial number of executors (not tasks!) for that bolt.
+    * Storm 0.8の時点では、``parallelism_hint``パラメータは、そのBoltのエグゼキュータの初期数（タスクではありません！）を指定するようになりました。
 
 ### Number of tasks
 
-* Description: How many tasks to create _per component_.
-* Configuration option: [TOPOLOGY_TASKS](javadocs/org/apache/storm/Config.html#TOPOLOGY_TASKS)
-* How to set in your code (examples):
+* 説明: _コンポーネントごとに_生成するするタスクの数。
+* 設定オプション: [TOPOLOGY_TASKS](javadocs/org/apache/storm/Config.html#TOPOLOGY_TASKS)
+* あなたのコードで設定する方法（例）: 
     * [ComponentConfigurationDeclarer#setNumTasks()](javadocs/org/apache/storm/topology/ComponentConfigurationDeclarer.html)
 
-
-Here is an example code snippet to show these settings in practice:
+実際に設定をしているコードスニペットの例を次に示します:
 
 ```java
 topologyBuilder.setBolt("green-bolt", new GreenBolt(), 2)
@@ -59,15 +58,15 @@ topologyBuilder.setBolt("green-bolt", new GreenBolt(), 2)
                .shuffleGrouping("blue-spout");
 ```
 
-In the above code we configured Storm to run the bolt ``GreenBolt`` with an initial number of two executors and four associated tasks. Storm will run two tasks per executor (thread). If you do not explicitly configure the number of tasks, Storm will run by default one task per executor.
+上記のコードでは、エグゼキュータ2つとそれに関連する4つをタスク数の初期値として与えて、Bolt``GreenBolt``を実行するようにStormを設定しました。Stormはエグゼキュータ（スレッド）ごとに2つのタスクを実行します。明示的にタスク数を設定しない場合、Stormはデフォルトで実行プログラムごとに1つのタスクを実行します。
 
 ## Example of a running topology
 
-The following illustration shows how a simple topology would look like in operation. The topology consists of three components: one spout called ``BlueSpout`` and two bolts called ``GreenBolt`` and ``YellowBolt``. The components are linked such that ``BlueSpout`` sends its output to ``GreenBolt``, which in turns sends its own output to ``YellowBolt``.
+次の図は、シンプルなトポロジでどのように動作するかを示しているものです。このトポロジは、``BlueSpout``と呼ばれる1つのSpuotと、``GreenBolt``および``YellowBolt``と呼ばれる2つのBoltの3つのコンポーネントで構成されています。これらのコンポーネントは、``BlueSpout``がその出力を``GreenBolt``に送るように結節されています。``GreenBolt``はその出力を``YellowBolt``に送ります。
 
 ![Example of a running topology in Storm](images/example-of-a-running-topology.png)
 
-The ``GreenBolt`` was configured as per the code snippet above whereas ``BlueSpout`` and ``YellowBolt`` only set the parallelism hint (number of executors). Here is the relevant code:
+``GreenBolt``は上記のコードスニペットに従って設定されていましたが、``BlueSpout``と ``YellowBolt``はparallelism hint（エグゼキュータの数）のみを設定しています 関連するコードは次のとおりです:
 
 ```java
 Config conf = new Config();
@@ -89,20 +88,20 @@ StormSubmitter.submitTopology(
     );
 ```
 
-And of course Storm comes with additional configuration settings to control the parallelism of a topology, including:
+もちろん、Stormには、トポロジの並列性を制御するための追加の設定があります:
 
-* [TOPOLOGY_MAX_TASK_PARALLELISM](javadocs/org/apache/storm/Config.html#TOPOLOGY_MAX_TASK_PARALLELISM): This setting puts a ceiling on the number of executors that can be spawned for a single component. It is typically used during testing to limit the number of threads spawned when running a topology in local mode. You can set this option via e.g. [Config#setMaxTaskParallelism()](javadocs/org/apache/storm/Config.html#setMaxTaskParallelism(int)).
+* [TOPOLOGY_MAX_TASK_PARALLELISM](javadocs/org/apache/storm/Config.html#TOPOLOGY_MAX_TASK_PARALLELISM): この設定は、単一のコンポーネントに対して生成できるエグゼキュータの数に上限を設定します。これは通常、ローカルモードでトポロジを実行するときに生成されるスレッドの数を制限するために、テスト中に使用されます。このオプションは、[Config#setMaxTaskParallelism()](javadocs/org/apache/storm/Config.html#setMaxTaskParallelism(int))で設定できます。 
 
 ## How to change the parallelism of a running topology
 
-A nifty feature of Storm is that you can increase or decrease the number of worker processes and/or executors without being required to restart the cluster or the topology. The act of doing so is called rebalancing.
+Stormのすばらしい特徴は、クラスタまたはトポロジを再起動する必要なく、ワーカープロセスやエグゼキュータの数を増減できることです。これはリバランスといいます。
 
-You have two options to rebalance a topology:
+トポロジをリバランスするには、次の2つの方法があります:
 
-1. Use the Storm web UI to rebalance the topology.
-2. Use the CLI tool storm rebalance as described below.
+1. Storm Web UIを使用して、トポロジをリバランスします。
+2. 以下に説明するように、CLIツールからstorm rebalanceを使用します。
 
-Here is an example of using the CLI tool:
+CLIツールの使用例を次に示します:
 
 ```
 ## Reconfigure the topology "mytopology" to use 5 worker processes,
@@ -119,5 +118,5 @@ $ storm rebalance mytopology -n 5 -e blue-spout=3 -e yellow-bolt=10
 * [Running topologies on a production cluster](Running-topologies-on-a-production-cluster.html)]
 * [Local mode](Local-mode.html)
 * [Tutorial](Tutorial.html)
-* [Storm API documentation](javadocs/), most notably the class ``Config``
+* [Storm API documentation](javadocs/), 特に``Config``クラス
 
