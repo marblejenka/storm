@@ -8,120 +8,120 @@ documentation: true
 
 ### What rules of thumb can you give me for configuring Storm+Trident?
 
-* number of workers a multiple of number of machines; parallelism a multiple of number of workers; number of kafka partitions a multiple of number of spout parallelism
-* Use one worker per topology per machine
-* Start with fewer, larger aggregators, one per machine with workers on it
-* Use the isolation scheduler
-* Use one acker per worker -- 0.9 makes that the default, but earlier versions do not.
-* enable GC logging; you should see very few major GCs if things are in reasonable shape.
-* set the trident batch millis to about 50% of your typical end-to-end latency.
-* Start with a max spout pending that is for sure too small -- one for trident, or the number of executors for storm -- and increase it until you stop seeing changes in the flow. You'll probably end up with something near `2*(throughput in recs/sec)*(end-to-end latency)` (2x the Little's law capacity).
+* ワーカーの数はマシン数の倍数とします; parallelismはワーカー数の倍数とし; Kafkaのパーティション数はSpoutの並列度の倍数とします
+* 1つのワーカーに対して1つのトポロジ、1つのトポロジに対して1つのマシンを使用します
+* より少ない、より大きなアグリゲータからから出発し、1台のマシンに1つのワーカーがを用意する
+* Isolation schedulerを使用する
+* 1つのワーカーに対して1つのackerを使用する -- 0.9からはデフォルトにしていますが、以前のバージョンではそうではありません。
+* GCロギングを有効にする; うまくいっている状態では、大きなGCはほとんど発生しません。
+* Tridentのbatch millisを典型的なエンドツーエンドレイテンシーの約50％に設定します。
+* 保留できるSpoutの最大値を、小さいと確信できる値からはじめる-- Tridentの場合は1つ、またはStormのエグゼキュータの数だけ -- そこから、流量に変化が見えなくなるまで、Spoutを増やしてください。おそらく `2*(throughput in recs/sec)*(end-to-end latency)`（リトルの法則におけるキャパシティの2倍程度）近傍に落ち着くでしょう。
 
 ### What are some of the best ways to get a worker to mysteriously and bafflingly die?
 
-* Do you have write access to the log directory
-* Are you blowing out your heap?
-* Are all the right libraries installed on all of the workers?
-* Is the zookeeper hostname still set to localhost?
-* Did you supply a correct, unique hostname -- one that resolves back to the machine -- to each worker, and put it in the storm conf file?
-* Have you opened firewall/securitygroup permissions _bidirectionally_ among a) all the workers, b) the storm master, c) zookeeper? Also, from the workers to any kafka/kestrel/database/etc that your topology accesses? Use netcat to poke the appropriate ports and be sure. 
+* ログディレクトリへの書き込み権限を持っていますか？
+* ヒープが使い尽くされてませんか？
+* すべてのワーカーにに適切なライブラリがすべてインストールされていますか？
+* Zookeeperのホスト名がlocalhostに設定されていませんか？
+* それぞれのワーカーに正確でかつユニークなホスト名 -- マシンそのものの名前解決もできるように -- を指定して、それをStormの設定ファイルに記述しましたか？
+* ファイアウォール/セキュリティグループのパーミッションを、a) すべてのワーカー、b) Stormのマスター、c) Zookeeperの間で_双方向_にオープンしましたか？ワーカーからあなたのトポロジーがアクセスするkafka/kestrel/database/etcについてはどうですか？ netcatを使用して適切なポートを突き止めてください。
 
 ### Halp! I cannot see:
 
-* **my logs** Logs by default go to $STORM_HOME/logs. Check that you have write permissions to that directory. They are configured in log4j2/{cluster, worker}.xml.
-* **final JVM settings** Add the `-XX+PrintFlagsFinal` commandline option in the childopts (see the conf file)
-* **final Java system properties** Add `Properties props = System.getProperties(); props.list(System.out);` near where you build your topology.
+* **my logs** ログはデフォルトで$STORM_HOME/logsに配置されます。そのディレクトリへの書き込み権限があることを確認してください。それらはog4j2/{cluster, worker}.xmlで設定されます。
+* **final JVM settings** childoptsに`-XX+PrintFlagsFinal`コマンドラインオプションを追加します（設定ファイルを参照）
+* **final Java system properties** トポロジを組み立てる実装に近いところに、`Properties props = System.getProperties(); props.list(System.out);`を追加します。
 
 ### How many Workers should I use?
 
-The total number of workers is set by the supervisors -- there's some number of JVM slots each supervisor will superintend. The thing you set on the topology is how many worker slots it will try to claim.
+ワーカーの総数はスーパーバイザーによって設定されます -- スーパーバイザーが監督するJVMスロットがいくつかあります。トポロジで設定できるものは、トポロジが要求しようとするワーカースロットの数です。
 
-There's no great reason to use more than one worker per topology per machine.
+マシンごと、トポロジごとに複数のワーカーを使用する大きな理由はありません。
 
-With one topology running on three 8-core nodes, and parallelism hint 24, each bolt gets 8 executors per machine, i.e. one for each core. There are three big benefits to running three workers (with 8 assigned executors each) compare to running say 24 workers (one assigned executor each).
+1つのトポロジが8コアのノード3台にparallelism hintが24で実行されている場合、各ボルトはマシンごとに8つのエグゼキュータ、つまり各コアごとに1つのエグゼキュータを取得します。3つのワーカー（それぞれ8つのエグゼキュータが割り当てられる）を実行することには、24のワーカー（それぞれのエグゼキュータに1つ割り当て）を動かすのと比較して、3つの大きなメリットがあります。
 
-First, data that is repartitioned (shuffles or group-bys) to executors in the same worker will not have to hit the transfer buffer. Instead, tuples are deposited directly from send to receive buffer. That's a big win. By contrast, if the destination executor were on the same machine in a different worker, it would have to go send -> worker transfer -> local socket -> worker recv -> exec recv buffer. It doesn't hit the network card, but it's not as big a win as when executors are in the same worker.
+まず、同じワーカーのエグゼキュータに再分割されたデータ（シャッフルまたはgroup-by）は、転送バッファをヒットする必要がありません。代わりに、タプルは、送信バッファから受信バッファに直接格納されます。それは大きな勝利です。対照的に、送り先のエグゼキュータが同じマシンの別のワーカーにある場合は、send -> worker transfer -> local socket -> worker recv -> exec recv bufferという経路をたどります。それはネットワークカードをヒットしませんが、エグゼキュータが同じワーカーにいる場合と同じくらい大きな勝利はありません。
 
-Second, you're typically better off with three aggregators having very large backing cache than having twenty-four aggregators having small backing caches. This reduces the effect of skew, and improves LRU efficiency.
+次に、バッキングキャッシュを小さくした24個のアグリゲータを持つよりも、非常に大きなバッキングキャッシュを持つ3個のアグリゲータを使用する方が良いでしょう。これにより、スキューの影響が軽減され、LRU効率が向上します。
 
-Lastly, fewer workers reduces control flow chatter.
+最後に、ワーカーを少なくすることにより制御の流れにおける無駄が少なくなります。
 
 ## Topology
 
 ### Can a Trident topology have Multiple Streams?
 
-> Can a Trident Topology work like a workflow with conditional paths (if-else)? e.g. A Spout (S1) connects to a bolt (B0) which based on certain values in the incoming tuple routes them to either bolt (B1) or bolt (B2) but not both.
+> Tridentトポロジは、(if-else)のような条件付きパスを持つワークフローのように機能できますか?例えば、Spout(S1)がBolt(B0)に接続し、Bolt(B0)が入力タプルの特定の値に基づいて、Bolt(B1)またはBolt(B2)のいずれか一方に入力をルーティングするようなものです。
 
-A Trident "each" operator returns a Stream object, which you can store in a variable. You can then run multiple eaches on the same Stream to split it, e.g.: 
+Tridentの"each"演算子は、変数に格納できるStreamオブジェクトを返します。同じストリームで複数のeach演算子の結果を分割して実行することができます（例：
 
         Stream s = topology.each(...).groupBy(...).aggregate(...) 
         Stream branch1 = s.each(..., FilterA) 
         Stream branch2 = s.each(..., FilterB) 
 
-You can join streams with join, merge or multiReduce.
+join、merge、またはmultiReduceを使用してストリームを結合できます。
 
-At time of writing, you can't emit to multiple output streams from Trident -- see [STORM-68](https://issues.apache.org/jira/browse/STORM-68)
+執筆時点では、Tridentから複数の出力ストリームには送出できません -- [STORM-68](https://issues.apache.org/jira/browse/STORM-68)を参照してください。
 
 ### Why am I getting a NotSerializableException/IllegalStateException when my topology is being started up?
 
-Within the Storm lifecycle, the topology is instantiated and then serialized to byte format to be stored in ZooKeeper, prior to the topology being executed. Within this step, if a spout or bolt within the topology has an initialized unserializable property, serialization will fail. If there is a need for a field that is unserializable, initialize it within the bolt or spout's prepare method, which is run after the topology is delivered to the worker.
+Stormのライフサイクル内では、トポロジがインスタンス化された後、トポロジが実行される前にZooKeeperに格納されるバイト形式に直列化されます。このステップでにおいて、トポロジ内のSpoutまたはBoltが直列化不可能なプロパティで初期化されている場合、直列化は失敗します。直列化不可能なフィールドが必要な場合は、トポロジがワーカーに渡された後に実行されるBoltまたはSpoutのprepareメソッド内で初期化します。
 
 ## Spouts
 
 ### What is a coordinator, and why are there several?
 
-A trident-spout is actually run within a storm _bolt_. The storm-spout of a trident topology is the MasterBatchCoordinator -- it coordinates trident batches and is the same no matter what spouts you use. A batch is born when the MBC dispenses a seed tuple to each of the spout-coordinators. The spout-coordinator bolts know how your particular spouts should cooperate -- so in the kafka case, it's what helps figure out what partition and offset range each spout should pull from.
+TridentのSpoutは実際にはStormの_Bolt_の中で実行されます。TridentのトポロジのStorm-SpoutはMasterBatchCoordinatorです -- Tridentのバッチを調節するもので、使用するSpoutに関係なく同じです。バッチは、MBCが各Spout-coordinatorにシードタプルを分配するときに生まれます。Spout-coordinatorのBoltは、あなたの特定のSpoutがどのように協力すべきかを知っています -- Kafkaの場合、各Spoutがどのパーティションやオフセットレンジからからpullするかを決めるのを助けます。
 
 ### What can I store into the spout's metadata record?
 
-You should only store static data, and as little of it as possible, into the metadata record (note: maybe you _can_ store more interesting things; you shouldn't, though)
+できるだけ小さく静的なデータをメタデータレコードに保存するようにしてください（メモ：おそらくもっと興味深いものを保存することはできますが、そうすべきではありません）
 
 ### How often is the 'emitPartitionBatchNew' function called?
 
-Since the MBC is the actual spout, all the tuples in a batch are just members of its tupletree. That means storm's "max spout pending" config effectively defines the number of concurrent batches trident runs. The MBC emits a new batch if it has fewer than max-spending tuples pending and if at least one [trident batch interval]({{page.git-blob-base}}/conf/defaults.yaml#L115)'s worth of seconds has passed since the last batch.
+MBCは実際のSpoutであるため、バッチ内のすべてのタプルはそのタプルツリーのメンバーにすぎません。つまり、Stormの設定"max spout pending"は、Tridentが並行に実行するバッチ数を効果的に定義します。 MBCは、保持するタプル数がmax-spendingより少なく、最後のバッチ以降に少なくとも1つの[trident batch interval]({{page.git-blob-base}}/conf/defaults.yaml#L115)秒が経過した場合、新しいバッチを送出します。
 
 ### If nothing was emitted does Trident slow down the calls?
 
-Yes, there's a pluggable "spout wait strategy"; the default is to sleep for a [configurable amount of time]({{page.git-blob-base}}/conf/defaults.yaml#L110)
+はい、プラグイン可能な"spout wait strategy"があります。デフォルトでは[設定可能な時間]({{page.git-blob-base}}/conf/defaults.yaml#L110)の間スリープします。
 
 ### OK, then what is the trident batch interval for?
 
-You know how computers of the 486 era had a [turbo button](http://en.wikipedia.org/wiki/Turbo_button) on them? It's like that. 
+あなたは486がどのように[ターボボタン](http://en.wikipedia.org/wiki/Turbo_button)を持っていたのか知​​っていますか？それとにたようなものです。
 
-Actually, it has two practical uses. One is to throttle spouts that poll a remote source without throttling processing. For example, we have a spout that looks in a given S3 bucket for a new batch-uploaded file to read, linebreak and emit. We don't want it hitting S3 more than every few seconds: files don't show up more than once every few minutes, and a batch takes a few seconds to process.
+実際には、2つの実用的な用途があります。 1つは、スロットル処理を行わずにリモートソースをポーリングするSpoutをスロットルできることです。たとえば、新しいバッチアップロードファイルを読み込み、改行して出力するために、指定されたS3バケットを監視するSpoutがあるとします。数秒ごとにS3をたたきに行くのは望ましくありません。ファイルは数分に1回以上更新されるわけでなく、バッチ処理に数秒かかります。
 
-The other is to limit overpressure on the internal queues during startup or under a heavy burst load -- if the spouts spring to life and suddenly jam ten batches' worth of records into the system, you could have a mass of less-urgent tuples from batch 7 clog up the transfer buffer and prevent the $commit tuple from batch 3 to get through (or even just the regular old tuples from batch 3). What we do is set the trident batch interval to about half the typical end-to-end processing latency -- if it takes 600ms to process a batch, it's OK to only kick off a batch every 300ms.
+もう1つは、スタートアップ時や重いバースト負荷のときに内部キューの過圧を制限することです -- Spoutが活性化して10バッチ分のレコードをシステムにいきなり詰め込むとすると、バッチ7からの緊急度の低いタプルを転送バッファを詰まらせ、バッチ3からの$commitタプルを妨げることになります（またはバッチ3からの通常の古いタプルさえも）。我々が行うことは、トライデントのバッチ間隔を典型的なエンドツーエンドの処理レイテンシの約半分に設定することです -- バッチを処理するのに600msかかる場合は、300msごとにバッチを開始するだけです。
 
-Note that this is a cap, not an additional delay -- with a period of 300ms, if your batch takes 258ms Trident will only delay an additional 42ms.
+これはキャップであり、追加の遅延ではないことに注意してください -- つまり300msの周期で動作するので、バッチが258msかかった場合はTridentはさらに42msだけ遅延させることになります。
 
 ### How do you set the batch size?
 
-Trident doesn't place its own limits on the batch count. In the case of the Kafka spout, the max fetch bytes size divided by the average record size defines an effective records per subbatch partition.
+Tridentはバッチ数に独自の制限を設けていません。Kafka Spoutの場合、最大フェッチバイトサイズを平均レコードサイズで割った値が、サブバッチパーティションごとの効率的なレコード数を定義します。
 
 ### How do I resize a batch?
 
-The trident batch is a somewhat overloaded facility. Together with the number of partitions, the batch size is constrained by or serves to define
+トライデントバッチは、いささか多重定義された機能です。パーティションの数とともに、バッチサイズは制約されるか定義されます
 
-1. the unit of transactional safety (tuples at risk vs time)
-2. per partition, an effective windowing mechanism for windowed stream analytics
-3. per partition, the number of simultaneous queries that will be made by a partitionQuery, partitionPersist, etc;
-4. per partition, the number of records convenient for the spout to dispatch at the same time;
+1. トランザクション安全性の単位（タプルについてのリスクと時間のトレードオフ）
+2. パーティションごとの、ウィンドウによるストリーム解析のための効率的ななウィンドウ機構
+3. パーティションごとの、partitionQuery、partitionPersistなどによって実行される同時クエリの数。
+4. パーティションごとの、Spoutが同時にディスパッチするのに便利なレコードの数。
 
-You can't change the overall batch size once generated, but you can change the number of partitions -- do a shuffle and then change the parallelism hint
+いったん生成されると、バッチ全体のサイズを変更することはできませんが、パーティション数を変更することはできます -- シャッフルしてから、parallelism hintを変更します
 
 ## Time Series
 
 ### How do I aggregate events by time?
 
-If you have records with an immutable timestamp, and you would like to count, average or otherwise aggregate them into discrete time buckets, Trident is an excellent and scalable solution.
+不変のタイムスタンプを持つレコードがあり、それを数えたり、平均をとったり、離散時間のバケットに集約したりする場合、Tridentはスケーラブルである優れたソリューションです。
 
-Write an `Each` function that turns the timestamp into a time bucket: if the bucket size was "by hour", then the timestamp `2013-08-08 12:34:56` would be mapped to the `2013-08-08 12:00:00` time bucket, and so would everything else in the twelve o'clock hour. Then group on that timebucket and use a grouped persistentAggregate. The persistentAggregate uses a local cacheMap backed by a data store. Groups with many records require very few reads from the data store, and use efficient bulk reads and writes; as long as your data feed is relatively prompt Trident will make very efficient use of memory and network. Even if a server drops off line for a day, then delivers that full day's worth of data in a rush, the old results will be calmly retrieved and updated -- and without interfering with calculating the current results.
+タイムスタンプをタイムバケットに変換する`Each`関数を書きましょう: バケツのサイズが"時次"の場合、タイムスタンプ`2013-08-08 12:34:56`は、時間バケット`2013-08-08 12:00:00`に対応付けられ、そして12時台の他のものもそうなります。その後、そのタイムバケットをグループ化し、グループ化されたpersistentAggregateを使用します。persistentAggregateは、データストアによってバックアップされたローカルのcacheMapを使用します。多くのレコードを持つグループでも、効率的な一括読み込みと書き込みを使用するため、データストアからの読み取りはほとんど必要ありません。あなたのデータフィードが比較的迅速である限り、Tridentはメモリとネットワークを非常に効率的に使用します。サーバーが1日の間にオフラインとなって1日分のデータを急いで配信しても、古い結果はゆっくりと取得され、更新されます -- 現在の結果の計算には影響を与えません。
 
 ### How can I know that all records for a time bucket have been received?
 
-You cannot know that all events are collected -- this is an epistemological challenge, not a distributed systems challenge. You can:
+すべてのイベントが収集されたことを知ることはできません -- これは認識論上の課題であり、分散システムの課題ではありません。できることはといえば:
 
-* Set a time limit using domain knowledge
-* Introduce a _punctuation_: a record known to come after all records in the given time bucket. Trident uses this scheme to know when a batch is complete. If you for instance receive records from a set of sensors, each in order for that sensor, then once all sensors have sent you a 3:02:xx or later timestamp lets you know you can commit. 
-* When possible, make your process incremental: each value that comes in makes the answer more an more true. A Trident ReducerAggregator is an operator that takes a prior result and a set of new records and returns a new result. This lets the result be cached and serialized to a datastore; if a server drops off line for a day and then comes back with a full day's worth of data in a rush, the old results will be calmly retrieved and updated.
-* Lambda architecture: Record all events into an archival store (S3, HBase, HDFS) on receipt. in the fast layer, once the time window is clear, process the bucket to get an actionable answer, and ignore everything older than the time window. Periodically run a global aggregation to calculate a "correct" answer.
+* ドメイン知識を使って時間制限を設定する
+* _punctuation_を導入する: 指定されたタイムバケット内のすべてのレコードの後に​​来るレコードがあるとします。Tridentは、この枠組みを使用してバッチがいつ完了したかを知ります。たとえば、一連のセンサーから、そのセンサーの順番でレコードを受信した場合、すべてのセンサーが3:02:xx以降のタイムスタンプを送信した後ならコミットできることがわかります。
+* 可能であれば、あなたのプロセスを増分的にしてください: それぞれの価値は答えをより真実に近いものにします。TridentのReducerAggregatorは、直近の結果と一連の新しいレコードを取り、新しい結果を返す演算子です。これにより、結果がキャッシュされ、データストアにシリアライズされます。サーバーが1日間オフラインになってから復旧し、1日分のデータを急いで戻すと、古い結果がゆっくりと取得され、更新されます。
+* Lambda architecture: アーカイブ・ストア(S3、HBase、HDFS)に受け取ったすべてのイベントを記録します。fast layerでは、タイムウィンドウがクリアされたら、バケットを処理して実行可能な回答を得て、タイムウィンドウより古いものはすべて無視します。グローバルアグリゲーションを定期的に実行して、"正確な"答えを計算します。
