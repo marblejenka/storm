@@ -4,7 +4,7 @@ layout: documentation
 documentation: true
 ---
 
-A framework for creating and deploying Apache Storm streaming computations with less friction.
+Apache Stormによるストリーム計算をより少ない手間で生成し、デプロイするためのフレームワークです。
 
 ## Definition
 **flux** |fləks| _noun_
@@ -15,14 +15,13 @@ A framework for creating and deploying Apache Storm streaming computations with 
 4. A substance mixed with a solid to lower its melting point
 
 ## Rationale
-Bad things happen when configuration is hard-coded. No one should have to recompile or repackage an application in
-order to change configuration.
+構成がハードコードされていると、悪いことが起こります。
+構成を変更するためにアプリケーションを再コンパイルまたは再パッケージする必要はありません。
 
 ## About
-Flux is a framework and set of utilities that make defining and deploying Apache Storm topologies less painful and
-deveoper-intensive.
+Fluxは、Apache Stormトポロジーの定義とデプロイメントを苦労なく行える、デベロッパー志向なフレームワークと一連のユーティリティーです。
 
-Have you ever found yourself repeating this pattern?:
+あなたは何回このパターンを繰り返すことしてきましたか？:
 
 ```java
 
@@ -39,47 +38,40 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-Wouldn't something like this be easier:
+こんな感じの方が簡単ではないでしょうか:
 
 ```bash
 storm jar mytopology.jar org.apache.storm.flux.Flux --local config.yaml
 ```
 
-or:
+とか:
 
 ```bash
 storm jar mytopology.jar org.apache.storm.flux.Flux --remote config.yaml
 ```
 
-Another pain point often mentioned is the fact that the wiring for a Topology graph is often tied up in Java code,
-and that any changes require recompilation and repackaging of the topology jar file. Flux aims to alleviate that
-pain by allowing you to package all your Storm components in a single jar, and use an external text file to define
-the layout and configuration of your topologies.
+また、トポロジのグラフを結線するのにJavaコードを使用するため、変更にはトポロジーjarファイルの再コンパイルと再パッケージングが必要であるという点もペインポイントとして取りざたされます。Fluxは、すべてのStormコンポーネントを単一のjarファイルにパッケージ化し、外部テキストファイルを使用してトポロジのレイアウトと設定を定義することで、その苦痛を軽減することを目指しています。
 
 ## Features
 
- * Easily configure and deploy Storm topologies (Both Storm core and Microbatch API) without embedding configuration
-   in your topology code
- * Support for existing topology code (see below)
- * Define Storm Core API (Spouts/Bolts) using a flexible YAML DSL
- * YAML DSL support for most Storm components (storm-kafka, storm-hdfs, storm-hbase, etc.)
- * Convenient support for multi-lang components
- * External property substitution/filtering for easily switching between configurations/environments (similar to Maven-style
-   `${variable.name}` substitution)
+ * トポロジのコードに設定を埋め込むことなく、Stormトポロジ(StormコアとMicrobatch APIの両方)を簡単に設定およびデプロイできます。
+ *  既存のトポロジコードのサポート(下記参照)
+ * Storm Core API(Spouts/Bolts)を柔軟なYAML DSLを使用して定義する
+ * ほとんどのStormコンポーネント(storm-kafka, storm-hdfs, storm-hbaseなど)のYAML DSLサポート
+ * Multi-langコンポーネントのための便利なサポート
+ * 設定/環境を簡単に切り替えるための外部プロパティの置換/フィルタリング(Mavenの`${variable.name}を置換するスタイルに似ています)
 
 ## Usage
 
-To use Flux, add it as a dependency and package all your Storm components in a fat jar, then create a YAML document
-to define your topology (see below for YAML configuration options).
+Fluxを使用するには、それを依存関係として追加し、すべてのStormコンポーネントをfat jarにパッケージングし、次にYAMLドキュメントを作成してトポロジを定義します(YAML設定オプションは以下を参照)。
 
 ### Building from Source
-The easiest way to use Flux, is to add it as a Maven dependency in you project as described below.
+Fluxを使用する最も簡単な方法は、後述のようにプロジェクトにMaven依存関係を追加することです。
 
-If you would like to build Flux from source and run the unit/integration tests, you will need the following installed
-on your system:
+ソースからFluxをビルドし、ユニット/統合テストを実行する場合は、システムに次のものがインストールされている必要があります:
 
-* Python 2.6.x or later
-* Node.js 0.10.x or later
+* Python 2.6.x またはそれ以降
+* Node.js 0.10.x またはそれ以降
 
 #### Building with unit tests enabled:
 
@@ -88,14 +80,13 @@ mvn clean install
 ```
 
 #### Building with unit tests disabled:
-If you would like to build Flux without installing Python or Node.js you can simply skip the unit tests:
+PythonやNode.jsをインストールせずにFluxを構築したい場合は、ユニットテストをスキップするだけです:
 
 ```
 mvn clean install -DskipTests=true
 ```
 
-Note that if you plan on using Flux to deploy topologies to a remote cluster, you will still need to have Python
-installed since it is required by Apache Storm.
+Fluxを使用してリモートクラスタにトポロジをデプロイする場合は、Apache Stormが必要とするため、Pythonをインストールする必要があります。
 
 
 #### Building with integration tests enabled:
@@ -106,12 +97,11 @@ mvn clean install -DskipIntegration=false
 
 
 ### Packaging with Maven
-To enable Flux for your Storm components, you need to add it as a dependency such that it's included in the Storm
-topology jar. This can be accomplished with the Maven shade plugin (preferred) or the Maven assembly plugin (not
-recommended).
+あなたのStormコンポーネントでFluxを有効にするには、それをStormトポロジのjarに含まれるように依存関係として追加する必要があります。これは、Maven shade plugin（推奨）またMaven assembly plugin（推奨しません）を使用して実行できます。
 
 #### Flux Maven Dependency
-The current version of Flux is available in Maven Central at the following coordinates:
+Fluxの現在のバージョンは、Maven Centralで次の指定により使用できます:
+
 ```xml
 <dependency>
     <groupId>org.apache.storm</groupId>
@@ -121,7 +111,7 @@ The current version of Flux is available in Maven Central at the following coord
 ```
 
 #### Creating a Flux-Enabled Topology JAR
-The example below illustrates Flux usage with the Maven shade plugin:
+以下の例は、Maven shadeプラグインを使用したFluxの使用法を示しています:
 
  ```xml
 <!-- include Flux and user dependencies in the shaded jar -->
@@ -170,53 +160,35 @@ The example below illustrates Flux usage with the Maven shade plugin:
  ```
 
 ### Deploying and Running a Flux Topology
-Once your topology components are packaged with the Flux dependency, you can run different topologies either locally
-or remotely using the `storm jar` command. For example, if your fat jar is named `myTopology-0.1.0-SNAPSHOT.jar` you
-could run it locally with the command:
-
+トポロジのコンポーネントがFluxの依存関係とともいパッケージ化されたら、`storm jar`コマンドを使用してローカルまたはリモートの異なるトポロジを実行できます。たとえば、fat jarの名前が `myTopology-0.1.0-SNAPSHOT.jar`である場合、以下のコマンドを使用してローカルで実行できます:
 
 ```bash
 storm jar myTopology-0.1.0-SNAPSHOT.jar org.apache.storm.flux.Flux --local my_config.yaml
-
 ```
 
 ### Command line options
 ```
 usage: storm jar <my_topology_uber_jar.jar> org.apache.storm.flux.Flux
              [options] <topology-config.yaml>
- -d,--dry-run                 Do not run or deploy the topology. Just
-                              build, validate, and print information about
-                              the topology.
- -e,--env-filter              Perform environment variable substitution.
-                              Replace keys identified with `${ENV-[NAME]}`
-                              will be replaced with the corresponding
-                              `NAME` environment value
- -f,--filter <file>           Perform property substitution. Use the
-                              specified file as a source of properties,
-                              and replace keys identified with {$[property
-                              name]} with the value defined in the
-                              properties file.
- -i,--inactive                Deploy the topology, but do not activate it.
- -l,--local                   Run the topology in local mode.
- -n,--no-splash               Suppress the printing of the splash screen.
- -q,--no-detail               Suppress the printing of topology details.
- -r,--remote                  Deploy the topology to a remote cluster.
- -R,--resource                Treat the supplied path as a classpath
-                              resource instead of a file.
- -s,--sleep <ms>              When running locally, the amount of time to
-                              sleep (in ms.) before killing the topology
-                              and shutting down the local cluster.
- -z,--zookeeper <host:port>   When running in local mode, use the
-                              ZooKeeper at the specified <host>:<port>
-                              instead of the in-process ZooKeeper.
-                              (requires Storm 0.9.3 or later)
+ -d,--dry-run                 トポロジを実行またはデプロイしません。トポロジに関する情報を構築、検証、表示するだけです。
+ -e,--env-filter              環境変数の置換を実行します。`${ENV-[NAME]}`で指定された置換キーは、対応する`NAME`の環境変数に置き換えられます
+ -f,--filter <file>           プロパティ置換を実行します。指定されたファイルをプロパティのソースとして使用し、
+                              $[property name]}で識別されるキーをプロパティファイルで定義された値に置き換えます。
+ -i,--inactive                トポロジをデプロイしますが、有効化しません。
+ -l,--local                   ローカルモードでトポロジを実行します。
+ -n,--no-splash               スプラッシュ画面の表示を抑止します。
+ -q,--no-detail               トポロジの詳細の表示を抑止します。
+ -r,--remote                  トポロジをリモートのクラスタにデプロイします。
+ -R,--resource                指定されたパスを、ファイルではなくクラスパスリソースとして扱います。
+ -s,--sleep <ms>              ローカルで実行しているときに、トポロジを強制終了してローカルクラスタをシャットダウンするまでのスリープ時間(ms)。
+ -z,--zookeeper <host:port>   ローカルモードで実行する際に、インプロセスZooKeeperの代わりに、
+                              指定した<host>:<port>のZooKeeperを使用します。(Stormの0.9.3以降が必要です)
 ```
 
-**NOTE:** Flux tries to avoid command line switch collision with the `storm` command, and allows any other command line
-switches to pass through to the `storm` command.
+**注意:** Fluxは`storm`コマンドのコマンドラインスイッチの衝突を回避しようとしており、他のコマンドラインスイッチを`storm`コマンドに渡すことができます。
 
-For example, you can use the `storm` command switch `-c` to override a topology configuration property. The following
-example command will run Flux and override the `nimbus.seeds` configuration:
+たとえば、`storm`コマンドスイッチ`-c`を使用して、トポロジの設定プロパティを上書きすることができます。
+次のコマンド例はFluxを実行し、`nimbus.seeds`設定を上書きします:
 
 ```bash
 storm jar myTopology-0.1.0-SNAPSHOT.jar org.apache.storm.flux.Flux --remote my_config.yaml -c 'nimbus.seeds=["localhost"]'
@@ -251,21 +223,19 @@ Submitting topology: 'shell-topology' to remote cluster...
 ```
 
 ## YAML Configuration
-Flux topologies are defined in a YAML file that describes a topology. A Flux topology
-definition consists of the following:
+Fluxのトポロジは、トポロジを記述するYAMLファイルで定義されます。
+Fluxのトポロジの定義は、次のもので構成されます:
 
-  1. A topology name
-  2. A list of topology "components" (named Java objects that will be made available in the environment)
-  3. **EITHER** (A DSL topology definition):
-      * A list of spouts, each identified by a unique ID
-      * A list of bolts, each identified by a unique ID
-      * A list of "stream" objects representing a flow of tuples between spouts and bolts
-  4. **OR** (A JVM class that can produce a `org.apache.storm.generated.StormTopology` instance:
-      * A `topologySource` definition.
+  1. トポロジ名
+  2. トポロジの"コンポーネント"のリスト(環境内で使用可能になる名前付けられたJavaオブジェクト)
+  3. **いずれかの** (DSLによるトポロジ定義):
+      * Spoutのリストで、それぞれが一意のIDで識別されているもの
+      * Boltのリストで、それぞれが一意のIDで識別されているもの
+      * SpoutとBoltの間のタプルの流れを表す"ストリーム"オブジェクトのリスト
+  4. **オプショナルな** (`org.apache.storm.generated.StormTopology`のインスタンスを生成できるJVMクラス
+      * `topologySource`の定義
 
-
-
-For example, here is a simple definition of a wordcount topology using the YAML DSL:
+例として、YAML DSLを使用したワードカウントをおこなうトポロジの簡単な定義を次に示します:
 
 ```yaml
 name: "yaml-topology"
@@ -305,27 +275,23 @@ streams:
 
 ```
 ## Property Substitution/Filtering
-It's common for developers to want to easily switch between configurations, for example switching deployment between
-a development environment and a production environment. This can be accomplished by using separate YAML configuration
-files, but that approach would lead to unnecessary duplication, especially in situations where the Storm topology
-does not change, but configuration settings such as host names, ports, and parallelism paramters do.
+開発において、開発者は開発環境と本番環境の間での展開の切り替えなど、設定を簡単に切り替えたくなることが普通です。
+これは、別のYAML設定ファイルを使用することで実現できますが、その方法だと、特にStormトポロジが変更されず、ホスト名、ポート、およびparallelismについてのパラメータなどの設定を変更する場合に、不要な重複が発生します。
 
-For this case, Flux offers properties filtering to allow you two externalize values to a `.properties` file and have
-them substituted before the `.yaml` file is parsed.
+この場合、Fluxは`.properties`ファイルに値を2つの外部化し、`.yaml`ファイルがパースされる前にそれらを置換するためのプロパティフィルタリングを提供します。
 
-To enable property filtering, use the `--filter` command line option and specify a `.properties` file. For example,
-if you invoked flux like so:
+プロパティフィルタリングを有効にするには、`--filter`コマンドラインオプションを使用し、`.properties`ファイルを指定します。たとえば、次のようにfluxを呼び出したとします:
 
 ```bash
 storm jar myTopology-0.1.0-SNAPSHOT.jar org.apache.storm.flux.Flux --local my_config.yaml --filter dev.properties
 ```
-With the following `dev.properties` file:
+以下の`dev.properties`ファイルをがあるとして:
 
 ```properties
 kafka.zookeeper.hosts: localhost:2181
 ```
 
-You would then be able to reference those properties by key in your `.yaml` file using `${}` syntax:
+`${}`構文を使うと、`.yaml`ファイルのキーからこれらのプロパティを参照することができます：
 
 ```yaml
   - id: "zkHosts"
@@ -334,23 +300,23 @@ You would then be able to reference those properties by key in your `.yaml` file
       - "${kafka.zookeeper.hosts}"
 ```
 
-In this case, Flux would replace `${kafka.zookeeper.hosts}` with `localhost:2181` before parsing the YAML contents.
+この場合、FluxはYAMLの内容をパースする前に`${kafka.zookeeper.hosts}`を`localhost:2181`に置き換えます。
 
 ### Environment Variable Substitution/Filtering
-Flux also allows environment variable substitution. For example, if an environment variable named `ZK_HOSTS` if defined,
-you can reference it in a Flux YAML file with the following syntax:
+Fluxでは、環境変数の置換も可能です。
+たとえば、`ZK_HOSTS`という名前の環境変数が定義されている場合、FluxのYAMLファイルでは次の構文で参照することができます:
 
 ```
 ${ENV-ZK_HOSTS}
 ```
 
 ## Components
-Components are essentially named object instances that are made available as configuration options for spouts and
-bolts. If you are familiar with the Spring framework, components are roughly analagous to Spring beans.
+コンポーネントは基本的に名前付けられたオブジェクトインスタンスで、SpoutとBoltの構成におけるオプションとして使用できます。 
+あなたがSpringフレームワークに精通しているなら、コンポーネントはSpring Beanとほぼ類似していることがわかるでしょう。
 
-Every component is identified, at a minimum, by a unique identifier (String) and a class name (String). For example,
-the following will make an instance of the `org.apache.storm.kafka.StringScheme` class available as a reference under the key
-`"stringScheme"` . This assumes the `org.apache.storm.kafka.StringScheme` has a default constructor.
+すべてのコンポーネントは、最小では、一意の識別子(String)とクラス名(String)によって識別されます。
+たとえば、以下の例では`org.apache.storm.kafka.StringScheme`クラスのインスタンスをキー`"stringScheme"`で参照として利用できます。
+これは、`org.apache.storm.kafka.StringScheme`がデフォルトコンストラクタを持っていることを前提としています。
 
 ```yaml
 components:
@@ -361,9 +327,8 @@ components:
 ### Contructor Arguments, References, Properties and Configuration Methods
 
 ####Constructor Arguments
-Arguments to a class constructor can be configured by adding a `contructorArgs` element to a components.
-`constructorArgs` is a list of objects that will be passed to the class' constructor. The following example creates an
-object by calling the constructor that takes a single string as an argument:
+クラスのコンストラクタへの引数は、コンポーネントに`contructorArgs`要素を追加することで設定できます。
+`constructorArgs`は、クラスのコンストラクタに渡されるオブジェクトのリストです。次の例では、単一の文字列を引数として取るコンストラクタを呼び出してオブジェクトを作成します:
 
 ```yaml
   - id: "zkHosts"
@@ -373,11 +338,11 @@ object by calling the constructor that takes a single string as an argument:
 ```
 
 ####References
-Each component instance is identified by a unique id that allows it to be used/reused by other components. To
-reference an existing component, you specify the id of the component with the `ref` tag.
+各コンポーネントのインスタンスは、他のコンポーネントによって使用/再利用されることを可能にする一意のIDによって識別されます。
+既存のコンポーネントを参照するには、`ref`タグを使ってコンポーネントのidを指定します。
 
-In the following example, a component with the id `"stringScheme"` is created, and later referenced, as a an argument
-to another component's constructor:
+次の例では、id`"stringScheme"`を持つコンポーネントが生成され、
+後で別のコンポーネントのコンストラクタへの引数として参照できまます:
 
 ```yaml
 components:
@@ -389,11 +354,11 @@ components:
     constructorArgs:
       - ref: "stringScheme" # component with id "stringScheme" must be declared above.
 ```
-**N.B.:** References can only be used after (below) the object they point to has been declared.
+**N.B.:** 参照は、それらが指し示すオブジェクトが宣言された後(下)でしか使用できません。
 
 ####Properties
-In addition to calling constructors with different arguments, Flux also allows you to configure components using
-JavaBean-like setter methods and fields declared as `public`:
+異なる引数を持つコンストラクタを呼び出すことに加えて、
+Fluxでは、`public`として宣言されたJavaBean風のsetterメソッドとフィールドを使用してコンポーネントを構成することもできます:
 
 ```yaml
   - id: "spoutConfig"
@@ -414,19 +379,16 @@ JavaBean-like setter methods and fields declared as `public`:
         ref: "stringMultiScheme"
 ```
 
-In the example above, the `properties` declaration will cause Flux to look for a public method in the `SpoutConfig` with
-the signature `setForceFromStart(boolean b)` and attempt to invoke it. If a setter method is not found, Flux will then
-look for a public instance variable with the name `ignoreZkOffsets` and attempt to set its value.
+上記の例では、`properties`宣言により、Fluxはシグネチャ`setForceFromStart(boolean b)`を持つ`SpoutConfig`内のパブリックメソッドを探し、それを呼び出そうとします。setterメソッドが見つからない場合、Fluxは`ignoreZkOffsets`という名前のパブリックインスタンス変数を探し、その値を設定しようとします。
 
-References may also be used as property values.
+参照はプロパティ値として使用することもできます。
 
 ####Configuration Methods
-Conceptually, configuration methods are similar to Properties and Constructor Args -- they allow you to invoke an
-arbitrary method on an object after it is constructed. Configuration methods are useful for working with classes that
-don't expose JavaBean methods or have constructors that can fully configure the object. Common examples include classes
-that use the builder pattern for configuration/composition.
+概念的には、Configuration MethodはPropertiesやConstructor引数に似ています -- オブジェクトの作成後に任意のメソッドを呼び出すことができます。
+Configuration Methodsは、JavaBeanメソッドを公開しないクラスや、オブジェクトを完全に構成できるコンストラクタを持つクラスを操作する場合に便利です。
+一般的な例だと、設定/合成にBuilderパターンを使用するクラスが含まれます。
 
-The following YAML example creates a bolt and configures it by calling several methods:
+次のYAMLの例は、Boltを生成し、いくつかのメソッドを呼び出すことによってそれを設定します:
 
 ```yaml
 bolts:
@@ -446,7 +408,7 @@ bolts:
           - "bar"
 ```
 
-The signatures of the corresponding methods are as follows:
+対応するメソッドのシグネチャは次のとおりです:
 
 ```java
     public void withFoo(String foo);
@@ -454,13 +416,12 @@ The signatures of the corresponding methods are as follows:
     public void withFooBar(String foo, String bar);
 ```
 
-Arguments passed to configuration methods work much the same way as constructor arguments, and support references as
-well.
+Configuration Methodに渡される引数は、コンストラクタ引数と同じように動作し、Referenceもサポートします。
 
 ### Using Java `enum`s in Contructor Arguments, References, Properties and Configuration Methods
-You can easily use Java `enum` values as arguments in a Flux YAML file, simply by referencing the name of the `enum`.
+単に `enum`の名前を参照するだけで、Flux YAMLファイルの引数としてJavaの`enum`値を簡単に使うことができます。
 
-For example, [Storm's HDFS module]() includes the following `enum` definition (simplified for brevity):
+たとえば、[Storm's HDFS module]()には、以下の `enum`定義が含まれています（簡略さために単純化されています）。
 
 ```java
 public static enum Units {
@@ -468,13 +429,13 @@ public static enum Units {
 }
 ```
 
-And the `org.apache.storm.hdfs.bolt.rotation.FileSizeRotationPolicy` class has the following constructor:
+そして、`org.apache.storm.hdfs.bolt.rotation.FileSizeRotationPolicy`クラスは次のコンストラクタを持っています:
 
 ```java
 public FileSizeRotationPolicy(float count, Units units)
 
 ```
-The following Flux `component` definition could be used to call the constructor:
+次のFlux`component`定義を使用してコンストラクタを呼び出すことができます:
 
 ```yaml
   - id: "rotationPolicy"
@@ -484,7 +445,7 @@ The following Flux `component` definition could be used to call the constructor:
       - MB
 ```
 
-The above definition is functionally equivalent to the following Java code:
+上記の定義は、次のJavaコードと機能的に同等です:
 
 ```java
 // rotate files when they reach 5MB
@@ -492,8 +453,7 @@ FileRotationPolicy rotationPolicy = new FileSizeRotationPolicy(5.0f, Units.MB);
 ```
 
 ## Topology Config
-The `config` section is simply a map of Storm topology configuration parameters that will be passed to the
-`org.apache.storm.StormSubmitter` as an instance of the `org.apache.storm.Config` class:
+`config`セクションは`org.apache.storm.Config`クラスのインスタンスとして`org.apache.storm.StormSubmitter`に渡されるStormトポロジ設定パラメータの対応付けです:
 
 ```yaml
 config:
@@ -503,23 +463,21 @@ config:
 ```
 
 # Existing Topologies
-If you have existing Storm topologies, you can still use Flux to deploy/run/test them. This feature allows you to
-leverage Flux Constructor Arguments, References, Properties, and Topology Config declarations for existing topology
-classes.
+既存のStormトポロジーを使用している場合でも、Fluxを使用してデプロイ/実行/テストすることができます。
+この機能を使用すると、既存のトポロジクラスについてFluxのコンストラクタの引数、参照、プロパティ、およびトポロジのコンフィグレーションの宣言を利用できます。
 
-The easiest way to use an existing topology class is to define
-a `getTopology()` instance method with one of the following signatures:
+既存のトポロジクラスを使用する最も簡単な方法は、次のシグネチャのいずれかを使って`getTopology()`インスタンスメソッドを定義することです:
 
 ```java
 public StormTopology getTopology(Map<String, Object> config)
 ```
-or:
+あるいは:
 
 ```java
 public StormTopology getTopology(Config config)
 ```
 
-You could then use the following YAML to configure your topology:
+次に、以下のYAMLを使用してトポロジを構成できます:
 
 ```yaml
 name: "existing-topology"
@@ -527,8 +485,7 @@ topologySource:
   className: "org.apache.storm.flux.test.SimpleTopology"
 ```
 
-If the class you would like to use as a topology source has a different method name (i.e. not `getTopology`), you can
-override it:
+トポロジのソースとして使用したいクラスが異なるメソッド名(例えば`getTopology`ないもの)である場合は、それを上書きすることができます:
 
 ```yaml
 name: "existing-topology"
@@ -537,19 +494,17 @@ topologySource:
   methodName: "getTopologyWithDifferentMethodName"
 ```
 
-__N.B.:__ The specified method must accept a single argument of type `java.util.Map<String, Object>` or
-`org.apache.storm.Config`, and return a `org.apache.storm.generated.StormTopology` object.
+__N.B.:__ 指定されたメソッドは`java.util.Map <String、Object>`または `org.apache.storm.Config`型の単一の引数を受け入れ、
+`org.apache.storm.generated.StormTopology`オブジェクトを返す必要があります。
 
 # YAML DSL
 ## Spouts and Bolts
-Spout and Bolts are configured in their own respective section of the YAML configuration. Spout and Bolt definitions
-are extensions to the `component` definition that add a `parallelism` parameter that sets the parallelism  for a
-component when the topology is deployed.
+SpoutとBoltは、YAML設定のそれぞれのセクションで設定されます。
+SpoutとBoltの定義は、トポロジのデプロイ時にコンポーネントの並列性を設定する`parallelism`パラメータを追加する`component`定義の拡張です。
 
-Because spout and bolt definitions extend `component` they support constructor arguments, references, and properties as
-well.
+SpoutとBoltの定義は`component`を拡張するので、コンストラクタ引数、参照、プロパティもサポートされます。
 
-Shell spout example:
+シェルSpoutの例:
 
 ```yaml
 spouts:
@@ -564,7 +519,7 @@ spouts:
     parallelism: 1
 ```
 
-Kafka spout example:
+Kafka Spoutの例:
 
 ```yaml
 components:
@@ -621,7 +576,7 @@ spouts:
 
 ```
 
-Bolt Examples:
+Boltの例:
 
 ```yaml
 # bolt definitions
@@ -647,30 +602,29 @@ bolts:
     # ...
 ```
 ## Streams and Stream Groupings
-Streams in Flux are represented as a list of connections (Graph edges, data flow, etc.) between the Spouts and Bolts in
-a topology, with an associated Grouping definition.
+Fluxのストリームは、関連付けられたグループ化定義とともに、トポロジ内のSpoutとBoltの間の接続（グラフのエッジ、データフローなど）のリストとして表されます。
 
-A Stream definition has the following properties:
+ストリームの定義には、次のプロパティがあります:
 
-**`name`:** A name for the connection (optional, currently unused)
+**`name`:** 接続の名前（オプション、現在は未使用）
 
-**`from`:** The `id` of a Spout or Bolt that is the source (publisher)
+**`from`:** ソース（パブリッシャ）であるSpoutまたはBoltの`id`
 
-**`to`:** The `id` of a Spout or Bolt that is the destination (subscriber)
+**`to`:** 行き先（サブスクライバ）であるSpoutまたはBoltの`id`
 
-**`grouping`:** The stream grouping definition for the Stream
+**`grouping`:** ストリームのストリームグループ化定義
 
-A Grouping definition has the following properties:
+グループ化定義には、次のプロパティがあります。:
 
-**`type`:** The type of grouping. One of `ALL`,`CUSTOM`,`DIRECT`,`SHUFFLE`,`LOCAL_OR_SHUFFLE`,`FIELDS`,`GLOBAL`, or `NONE`.
+**`type`:** グループ化のタイプ。`ALL`,`CUSTOM`,`DIRECT`,`SHUFFLE`,`LOCAL_OR_SHUFFLE`,`FIELDS`,`GLOBAL`,または`NONE`のいずれか。
 
-**`streamId`:** The Storm stream ID (Optional. If unspecified will use the default stream)
+**`streamId`:** StormのストリームID(省略可能。未指定の場合、デフォルトのストリームを使用します)
 
-**`args`:** For the `FIELDS` grouping, a list of field names.
+**`args`:** `FIELDS`グループの場合、フィールド名のリスト。
 
-**`customClass`** For the `CUSTOM` grouping, a definition of custom grouping class instance
+**`customClass`** `CUSTOM`グルーピングの場合、カスタムグルーピングクラスインスタンスの定義
 
-The `streams` definition example below sets up a topology with the following wiring:
+以下の`streams`定義の例は、以下のような結線でトポロジーを設定します:
 
 ```
     kafka-spout --> splitsentence --> count --> log
@@ -705,12 +659,10 @@ streams:
 ```
 
 ### Custom Stream Groupings
-Custom stream groupings are defined by setting the grouping type to `CUSTOM` and defining a `customClass` parameter
-that tells Flux how to instantiate the custom class. The `customClass` definition extends `component`, so it supports
-constructor arguments, references, and properties as well.
+カスタムストリームグループを定義するには、グループ化タイプを`CUSTOM`に設定し、カスタムクラスをインスタンス化する方法をFluxに指示する`customClass`パラメータを定義します。
+`customClass`定義は`component`を拡張するので、コンストラクタの引数、参照、プロパティもサポートします。
 
-The example below creates a Stream with an instance of the `org.apache.storm.testing.NGrouping` custom stream grouping
-class.
+次の例は、`org.apache.storm.testing.NGrouping`カスタムストリームグループ化クラスのインスタンスを持つStreamを作成します。
 
 ```yaml
   - name: "bolt-1 --> bolt2"
@@ -725,10 +677,10 @@ class.
 ```
 
 ## Includes and Overrides
-Flux allows you to include the contents of other YAML files, and have them treated as though they were defined in the
-same file. Includes may be either files, or classpath resources.
+Fluxでは、他のYAMLファイルの内容を含めることができ、同じファイルに定義されているかのように扱うことができます。
+Includeは、ファイルまたはクラスパスリソースのいずれかです。
 
-Includes are specified as a list of maps:
+Includeはマップのリストとして指定されます：
 
 ```yaml
 includes:
@@ -737,21 +689,21 @@ includes:
     override: false
 ```
 
-If the `resource` property is set to `true`, the include will be loaded as a classpath resource from the value of the
-`file` attribute, otherwise it will be treated as a regular file.
+`resource`プロパティが`true`に設定されている場合、Includeはクラスパスリソースとして`file`属性の値からロードされます。
+そうでない場合、それは通常のファイルとして扱われます。
 
-The `override` property controls how includes affect the values defined in the current file. If `override` is set to
-`true`, values in the included file will replace values in the current file being parsed. If `override` is set to
-`false`, values in the current file being parsed will take precedence, and the parser will refuse to replace them.
+`override`プロパティは、現在のファイルに定義されている値をインクルードする方法を制御します。
+`override`が`true`に設定されている場合、Includeされたファイルの値は、解析中の現在のファイルの値を置き換えます。
+`override`が`false`に設定されていると、解析中の現在のファイルの値が優先され、パーサはそれらを置き換えることをしません。
 
-**N.B.:** Includes are not yet recursive. Includes from included files will be ignored.
+**N.B.:** Includeは今のところ再帰的ではありません。IncludeされているファイルからのIncludeは無視されます。
 
 
 ## Basic Word Count Example
 
-This example uses a spout implemented in JavaScript, a bolt implemented in Python, and a bolt implemented in Java
+この例では、JavaScriptで実装されたSpout、Pythonで実装されたボルト、Javaで実装されたボルトを使用しています
 
-Topology YAML config:
+トポロジのYAMLによる設定:
 
 ```yaml
 ---
@@ -818,9 +770,9 @@ streams:
 
 
 ## Micro-Batching (Trident) API Support
-Currenty, the Flux YAML DSL only supports the Core Storm API, but support for Storm's micro-batching API is planned.
+現在、Flux YAML DSLはCore Storm APIのみをサポートしていますが、Stormのマイクロバッチ処理APIのサポートが計画されています。
 
-To use Flux with a Trident topology, define a topology getter method and reference it in your YAML config:
+FluentをTridentトポロジで使用するには、トポロジにgetterメソッドを定義し、YAMLコンフィグレーションでそれを参照します:
 
 ```yaml
 name: "my-trident-topology"
