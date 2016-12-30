@@ -3,11 +3,11 @@ title: Running Topologies on a Production Cluster
 layout: documentation
 documentation: true
 ---
-Running topologies on a production cluster is similar to running in [Local mode](Local-mode.html). Here are the steps:
+本場クラスタでトポロジを実行するのは、[ローカルモード](Local-mode.html)で実行するのと同様です。以下がその手順です:
 
-1) Define the topology (Use [TopologyBuilder](javadocs/org/apache/storm/topology/TopologyBuilder.html) if defining using Java)
+1) Javaを使用して定義する場合は、[TopologyBuilder](javadocs/org/apache/storm/topology/TopologyBuilder.html)でトポロジを定義します
 
-2) Use [StormSubmitter](javadocs/org/apache/storm/StormSubmitter.html) to submit the topology to the cluster. `StormSubmitter` takes as input the name of the topology, a configuration for the topology, and the topology itself. For example:
+2）[StormSubmitter](javadocs/org/apache/storm/StormSubmitter.html)を使用して、クラスタにトポロジを送信します。`StormSubmitter`は、入力としてトポロジーの名前、トポロジーの設定、トポロジーそのものを受け取ります。例えば:
 
 ```java
 Config conf = new Config();
@@ -16,9 +16,9 @@ conf.setMaxSpoutPending(5000);
 StormSubmitter.submitTopology("mytopology", conf, topology);
 ```
 
-3) Create a jar containing your code and all the dependencies of your code (except for Storm -- the Storm jars will be added to the classpath on the worker nodes).
+3) あなたのコードとあなたのコードのすべての依存関係を含むjarファイルを作成します(Stormを除く -- Storm jarファイルはワーカーノードのクラスパスに追加されます)。
 
-If you're using Maven, the [Maven Assembly Plugin](http://maven.apache.org/plugins/maven-assembly-plugin/) can do the packaging for you. Just add this to your pom.xml:
+Mavenを使用している場合は、[Maven Assembly Plugin](http://maven.apache.org/plugins/maven-assembly-plugin/)でパッケージ化できます。 これをpom.xmlに追加してください：
 
 ```xml
   <plugin>
@@ -35,43 +35,43 @@ If you're using Maven, the [Maven Assembly Plugin](http://maven.apache.org/plugi
     </configuration>
   </plugin>
 ```
-Then run mvn assembly:assembly to get an appropriately packaged jar. Make sure you [exclude](http://maven.apache.org/plugins/maven-assembly-plugin/examples/single/including-and-excluding-artifacts.html) the Storm jars since the cluster already has Storm on the classpath.
+次に、mvn assembly:assemblyを実行して、適切にパッケージされたjarを取得します。 クラスタにおけるクラスパスにはすでにStormがあるので、Storm jarが[除外](http://maven.apache.org/plugins/maven-assembly-plugin/examples/single/including-and-excluding-artifacts.html)されていることをを必ず確認してください。
 
-4) Submit the topology to the cluster using the `storm` client, specifying the path to your jar, the classname to run, and any arguments it will use:
+4) jarへのパス、実行するクラス名、および使用する引数を指定して、 `storm`クライアントを使用してトポロジをクラスタに送信します:
 
 `storm jar path/to/allmycode.jar org.me.MyTopology arg1 arg2 arg3`
 
-`storm jar` will submit the jar to the cluster and configure the `StormSubmitter` class to talk to the right cluster. In this example, after uploading the jar `storm jar` calls the main function on `org.me.MyTopology` with the arguments "arg1", "arg2", and "arg3".
+`storm jar`はクラスタにjarファイルを送り、`StormSubmitter`クラスを設定して正しいクラスタと通信します。この例では、jarをアップロードした後、`storm jar`は、引数"arg1", "arg2", ならびに "arg3"を持つ`org.me.MyTopology`のmain関数を呼び出します。
 
-You can find out how to configure your `storm` client to talk to a Storm cluster on [Setting up development environment](Setting-up-development-environment.html).
+`storm`クライアントがStormクラスタと対話するように[開発環境の設定](Setting-up-development-environment.html)を設定する方法を知ることができます。
 
 ### Common configurations
 
-There are a variety of configurations you can set per topology. A list of all the configurations you can set can be found [here](javadocs/org/apache/storm/Config.html). The ones prefixed with "TOPOLOGY" can be overridden on a topology-specific basis (the other ones are cluster configurations and cannot be overridden). Here are some common ones that are set for a topology:
+トポロジごとに設定できるさまざまな構成があります。設定できるすべての設定のリストは、[こちら](javadocs/org/apache/storm/Config.html)にあります。"TOPOLOGY"という接頭辞が付いているものは、トポロジ固有の基準で上書きできます(他はクラスタに対する設定であり、上書きすることはできません)。トポロジに設定されている一般的なものを次に示します:
 
-1. **Config.TOPOLOGY_WORKERS**: This sets the number of worker processes to use to execute the topology. For example, if you set this to 25, there will be 25 Java processes across the cluster executing all the tasks. If you had a combined 150 parallelism across all components in the topology, each worker process will have 6 tasks running within it as threads.
-2. **Config.TOPOLOGY_ACKER_EXECUTORS**: This sets the number of executors that will track tuple trees and detect when a spout tuple has been fully processed. Ackers are an integral part of Storm's reliability model and you can read more about them on [Guaranteeing message processing](Guaranteeing-message-processing.html). By not setting this variable or setting it as null, Storm will set the number of acker executors to be equal to the number of workers configured for this topology. If this variable is set to 0, then Storm will immediately ack tuples as soon as they come off the spout, effectively disabling reliability.
-3. **Config.TOPOLOGY_MAX_SPOUT_PENDING**: This sets the maximum number of spout tuples that can be pending on a single spout task at once (pending means the tuple has not been acked or failed yet). It is highly recommended you set this config to prevent queue explosion.
-4. **Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS**: This is the maximum amount of time a spout tuple has to be fully completed before it is considered failed. This value defaults to 30 seconds, which is sufficient for most topologies. See [Guaranteeing message processing](Guaranteeing-message-processing.html) for more information on how Storm's reliability model works.
-5. **Config.TOPOLOGY_SERIALIZATIONS**: You can register more serializers to Storm using this config so that you can use custom types within tuples.
+1. **Config.TOPOLOGY_WORKERS**: トポロジーの実行に使用するワーカープロセスの数を設定します。たとえば、これを25に設定すると、すべてのタスクを実行するためにクラスタ全体で25のJavaプロセスが起動することになります。トポロジ内のすべてのコンポーネントにわたって150のparallelismを組み合わせた場合、各ワーカー・プロセスは6つのタスクをスレッドとして実行します。
+2. **Config.TOPOLOGY_ACKER_EXECUTORS**: タプルツリーを追跡し、スパウトタプルが完全に処理されたときを検出するエグゼキュータの数を設定します。ackerはStormの信頼性モデルの不可欠な部分であり、詳細は[メッセージ処理の保証](Guaranteeing-message-processing.html)で読むことができます。この変数を設定しないか、またはnullに設定することで、Stormはackerエグゼキュータの数をこのトポロジ用に設定されたワーカーの数に等しく設定します。この変数が0に設定されている場合、StormはSpoutから出てすぐにタプルをackし、信頼性を効果的に無効にします。
+3. **Config.TOPOLOGY_MAX_SPOUT_PENDING**: これは、一度に1つのSpoutタスクにpendingされることができるSpoutタプルの最大数を設定します(pendingは、タプルがまだ確認されていないか、またはまだ失敗していないことを意味します)。キューの爆発を防ぐため、この設定を強くお勧めします。
+4. **Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS**: Spoutタプルが完全に完了する前に失敗したとみなされる最大時間です。この値のデフォルトは30秒で、ほとんどのトポロジで要件を満たします。 Stormの信頼性モデルの仕組みの詳細については、[メッセージ処理の保証](Guaranteeing-message-processing.html)を参照してください。
+5. **Config.TOPOLOGY_SERIALIZATIONS**: タプル内でカスタム型を使用できるように、この設定を使用して、より多くのシリアライザをStormに登録することができます。
 
 
 ### Killing a topology
 
-To kill a topology, simply run:
+トポロジを強制終了するには、次のコマンドを実行します:
 
 `storm kill {stormname}`
 
-Give the same name to `storm kill` as you used when submitting the topology.
+トポロジをsubmitするときに使用したのと同じ名前を`storm kill`に付けます。
 
-Storm won't kill the topology immediately. Instead, it deactivates all the spouts so that they don't emit any more tuples, and then Storm waits Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS seconds before destroying all the workers. This gives the topology enough time to complete any tuples it was processing when it got killed.
+ストームはすぐにトポロジを強制終了しません。代わりに、Spoutがすべてタプルを放出しないようにすべてのスパウトを無効にしてから、StormはConfig.TOPOLOGY_MESSAGE_TIMEOUT_SECS秒待機してからすべてのワーカーを破棄します。これにより、トポロジには、強制終了された時点でに処理していたタプルを完了するのに十分な時間が与えられます。
 
 ### Updating a running topology
 
-To update a running topology, the only option currently is to kill the current topology and resubmit a new one. A planned feature is to implement a `storm swap` command that swaps a running topology with a new one, ensuring minimal downtime and no chance of both topologies processing tuples at the same time. 
+実行中のトポロジを更新するために、今時点でできることは、トポロジを強制終了して新しいトポロジとして再送信することです。実行中のトポロジーを新しいものと交換する`storm swap`コマンドを実装し、ダウンタイムを最小限に抑え、双方のトポロジがタプルを同時に処理する可能性をなくす機能が計画されています。
 
 ### Monitoring topologies
 
-The best place to monitor a topology is using the Storm UI. The Storm UI provides information about errors happening in tasks and fine-grained stats on the throughput and latency performance of each component of each running topology.
+トポロジを監視する最適な場所は、Storm UIを使用することです。Storm UIには、実行中の各トポロジの各コンポーネントのスループットとレイテンシのパフォーマンスに関する、タスクにおけるエラーやきめ細かな統計情報が表示されます。
 
-You can also look at the worker logs on the cluster machines.
+また、クラスタマシンのワーカーログを見ることもできます。
