@@ -3,21 +3,21 @@ title: Clojure DSL
 layout: documentation
 documentation: true
 ---
-Storm comes with a Clojure DSL for defining spouts, bolts, and topologies. The Clojure DSL has access to everything the Java API exposes, so if you're a Clojure user you can code Storm topologies without touching Java at all. The Clojure DSL is defined in the source in the [org.apache.storm.clojure]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/clojure.clj) namespace.
+StormにはSpout、Bolt、トポロジを定義するためのClojure DSLが付属しています Clojure DSLはJava APIが公開しているすべてのものにアクセスできるため、ClojureのユーザーはJavaに触れることなくStormトポロジをコーディングすることができます。Clojure DSLは、名前空間[org.apache.storm.clojure]({{page.git-blob-base}}/storm-core/src/clj/org/apache/storm/clojure.clj)のソースで定義されています。
 
-This page outlines all the pieces of the Clojure DSL, including:
+このページでは、以下を含むClojure DSLのすべての部分を概説します:
 
-1. Defining topologies
+1. トポロジを定義する
 2. `defbolt`
 3. `defspout`
-4. Running topologies in local mode or on a cluster
-5. Testing topologies
+4. トポロジをローカルまたはクラスタモードで実行する
+5. トポロジをテストする
 
 ### Defining topologies
 
-To define a topology, use the `topology` function. `topology` takes in two arguments: a map of "spout specs" and a map of "bolt specs". Each spout and bolt spec wires the code for the component into the topology by specifying things like inputs and parallelism.
+トポロジを定義するには、`topology`関数を使用します。`topology`は2つの引数を取ります:"spout specs"のマップと"bolt specs"のマップです。各Spout仕様とBolt仕様は、入力とparallelismなどを指定することにより、コンポーネントのコードをトポロジに結線します。
 
-Let's take a look at an example topology definition [from the storm-starter project]({{page.git-blob-base}}/examples/storm-starter/src/clj/org/apache/storm/starter/clj/word_count.clj):
+[storm-starterプロジェクトの]({{page.git-blob-base}}/examples/storm-starter/src/clj/org/apache/storm/starter/clj/word_count.clj)トポロジ定義の例を見てみましょう:
 
 ```clojure
 (topology
@@ -34,30 +34,30 @@ Let's take a look at an example topology definition [from the storm-starter proj
                  :p 6)})
 ```
 
-The maps of spout and bolt specs are maps from the component id to the corresponding spec. The component ids must be unique across the maps. Just like defining topologies in Java, component ids are used when declaring inputs for bolts in the topology.
+SpoutとBolt仕様のマップは、コンポーネントIDから対応する仕様へのマップです。コンポーネントIDはマップ全体で一意でなければなりません。Javaでトポロジを定義するのと同じように、コンポーネントIDはトポロジ内のBoltの入力を宣言するときに使用されます。
 
 #### spout-spec
 
-`spout-spec` takes as arguments the spout implementation (an object that implements [IRichSpout](javadocs/org/apache/storm/topology/IRichSpout.html)) and optional keyword arguments. The only option that exists currently is the `:p` option, which specifies the parallelism for the spout. If you omit `:p`, the spout will execute as a single task.
+`spout-spec`は、Spoutの実装([IRichSpout](javadocs/org/apache/storm/topology/IRichSpout.html)を実装するオブジェクト)とオプションのキーワード引数を引数としてとります。現在存在する唯一のオプションは、Spoutのparallelismを指定する`:p`オプションです。`:p`を省略すると、Spoutは単一のタスクとして実行されます。
 
 #### bolt-spec
 
-`bolt-spec` takes as arguments the input declaration for the bolt, the bolt implementation (an object that implements [IRichBolt](javadocs/org/apache/storm/topology/IRichBolt.html)), and optional keyword arguments.
+`bolt-spec`は、入力宣言としてBoltの実装([IRichBolt](javadocs/org/apache/storm/topology/IRichBolt.html)を実装するオブジェクト)とオプションのキーワード引数の入力宣言を引数としてとります。
 
-The input declaration is a map from stream ids to stream groupings. A stream id can have one of two forms:
+入力宣言は、ストリームIDからストリームグルーピングに対する対応付けです。ストリームIDは、次の2つの形式のいずれかを持つことができます:
 
-1. `[==component id== ==stream id==]`: Subscribes to a specific stream on a component
-2. `==component id==`: Subscribes to the default stream on a component
+1. `[==component id== ==stream id==]`: コンポーネントの特定のストリームをサブスクライブする
+2. `==component id==`: コンポーネントのデフォルトストリームをサブスクライブする
 
-A stream grouping can be one of the following:
+ストリームグループは次のいずれかになります:
 
-1. `:shuffle`: subscribes with a shuffle grouping
-2. Vector of field names, like `["id" "name"]`: subscribes with a fields grouping on the specified fields
-3. `:global`: subscribes with a global grouping
-4. `:all`: subscribes with an all grouping
-5. `:direct`: subscribes with a direct grouping
+1. `:shuffle`: Shuffle Groupingでサブスクライブする
+2. `["id" "name"]`のようなフィールド名のベクトル: 指定されたフィールドのField Groupingをサブスクライブする
+3. `:global`: Global Groupingでサブスクライブする
+4. `:all`: All Groupingでサブスクライブする
+5. `:direct`: Direct Groupingでサブスクライブする
 
-See [Concepts](Concepts.html) for more info on stream groupings. Here's an example input declaration showcasing the various ways to declare inputs:
+ストリームのグループ化の詳細については、[Concepts](Concepts.html)を参照してください。次に、入力を宣言するためのさまざまな方法の例を示します。
 
 ```clojure
 {["2" "1"] :shuffle
@@ -65,15 +65,15 @@ See [Concepts](Concepts.html) for more info on stream groupings. Here's an examp
  ["4" "2"] :global}
 ```
 
-This input declaration subscribes to three streams total. It subscribes to stream "1" on component "2" with a shuffle grouping, subscribes to the default stream on component "3" with a fields grouping on the fields "field1" and "field2", and subscribes to stream "2" on component "4" with a global grouping.
+この入力宣言は、合計3つのストリームをサブスクライブしています。コンポーネント"2"のストリーム"1"をShuffle Groupingでサブスクライブし、コンポーネント"3"のデフォルトストリームをサブスクライブし、フィールド"field1"および"field2"でField Groupingし、ストリーム"2"にサブスクライブするコンポーネント"4"はGlobal Groupingをしています。
 
-Like `spout-spec`, the only current supported keyword argument for `bolt-spec` is `:p` which specifies the parallelism for the bolt.
+`spout-spec`と同様に、`bolt-spec`で現在サポートされている唯一のキーワード引数は`:p`で、Boltのparallelismを指定します。
 
 #### shell-bolt-spec
 
-`shell-bolt-spec` is used for defining bolts that are implemented in a non-JVM language. It takes as arguments the input declaration, the command line program to run, the name of the file implementing the bolt, an output specification, and then the same keyword arguments that `bolt-spec` accepts.
+`shell-bolt-spec`は非JVM言語で実装されたボルトを定義するために使われます。引数として、入力宣言、実行するコマンドラインプログラム、Boltを実装するファイルの名前、出力仕様、そして`bolt-spec`が受け付けるのと同じキーワード引数を引数としてとります。
 
-Here's an example `shell-bolt-spec`:
+次に、`shell-bolt-spec`の例を示します:
 
 ```clojure
 (shell-bolt-spec {"1" :shuffle "2" ["id"]}
@@ -83,21 +83,21 @@ Here's an example `shell-bolt-spec`:
                  :p 25)
 ```
 
-The syntax of output declarations is described in more detail in the `defbolt` section below. See [Using non JVM languages with Storm](Using-non-JVM-languages-with-Storm.html) for more details on how multilang works within Storm.
+出力宣言の構文については、後述の`defbolt`節で詳しく説明しています。Storm内でmultilangがどのように動作するかの詳細については、[Stormで非JVM言語を使用する](Using-non-JVM-languages-with-Storm.html)を参照してください。
 
 ### defbolt
 
-`defbolt` is used for defining bolts in Clojure. Bolts have the constraint that they must be serializable, and this is why you can't just reify `IRichBolt` to implement a bolt (closures aren't serializable). `defbolt` works around this restriction and provides a nicer syntax for defining bolts than just implementing a Java interface.
+`defbolt`はClojureでBoltを定義するために使われます。Boltには直列化が可能でなければならないという制約があります。`IRichBolt`でBoltを実装するのでは不十分なのはこのためです(closureは直列化できない)。`defbolt`はこの制限を回避し、Javaインターフェースを実装するだけでなく、Boltを定義するためのより良い構文を提供します。
 
-At its fullest expressiveness, `defbolt` supports parameterized bolts and maintaining state in a closure around the bolt implementation. It also provides shortcuts for defining bolts that don't need this extra functionality. The signature for `defbolt` looks like the following:
+`defbolt`はパラメータ化されたBoltをサポートし、Bolt実装周辺のclosureにおける状態を維持します。また、この余分な機能を必要としないBoltを定義するためのショートカットも用意されています。 `defbolt`のシグネチャは次のようになります:
 
 (defbolt _name_ _output-declaration_ *_option-map_ & _impl_)
 
-Omitting the option map is equivalent to having an option map of `{:prepare false}`.
+オプションマップを省略すると、`{:prepare false}`のオプションマップを持つのと同等になります。
 
 #### Simple bolts
 
-Let's start with the simplest form of `defbolt`. Here's an example bolt that splits a tuple containing a sentence into a tuple for each word:
+最もシンプルな形式の`defbolt`から始めましょう。ここでは、文を含むタプルを各単語のタプルに分割するボルトの例を示します:
 
 ```clojure
 (defbolt split-sentence ["word"] [tuple collector]
@@ -108,9 +108,9 @@ Let's start with the simplest form of `defbolt`. Here's an example bolt that spl
     ))
 ```
 
-Since the option map is omitted, this is a non-prepared bolt. The DSL simply expects an implementation for the `execute` method of `IRichBolt`. The implementation takes two parameters, the tuple and the `OutputCollector`, and is followed by the body of the `execute` function. The DSL automatically type-hints the parameters for you so you don't need to worry about reflection if you use Java interop.
+オプションマップは省略されているので、これはnon-preparedなBoltです。DSLは`IRichBolt`の`execute`メソッドの実装を単に期待しています。この実装はタプルと`OutputCollector`の2つのパラメータをとり、`execute`関数の本体が続きます。DSLは自動的にパラメータに型ヒントをつけます。したがって、Java連携機能を使用する場合でも、リフレクションについて心配する必要はありません。
 
-This implementation binds `split-sentence` to an actual `IRichBolt` object that you can use in topologies, like so:
+この実装は`split-sentence`をトポロジで使うことができる実際の`IRichBolt`オブジェクトにバインドします:
 
 ```clojure
 (bolt-spec {"1" :shuffle}
@@ -121,7 +121,7 @@ This implementation binds `split-sentence` to an actual `IRichBolt` object that 
 
 #### Parameterized bolts
 
-Many times you want to parameterize your bolts with other arguments. For example, let's say you wanted to have a bolt that appends a suffix to every input string it receives, and you want that suffix to be set at runtime. You do this with `defbolt` by including a `:params` option in the option map, like so:
+多くの場合、他の引数でBoltをパラメータ化したいことがあります。たとえば、受け取ったすべての入力文字列に接尾辞を追加し、その接尾辞を実行時に設定したいと思っているとします。`defbolt`のオプションマップに `:params`オプションを含めるとできます:
 
 ```clojure
 (defbolt suffix-appender ["word"] {:params [suffix]}
@@ -130,7 +130,7 @@ Many times you want to parameterize your bolts with other arguments. For example
   )
 ```
 
-Unlike the previous example, `suffix-appender` will be bound to a function that returns an `IRichBolt` rather than be an `IRichBolt` object directly. This is caused by specifying `:params` in its option map. So to use `suffix-appender` in a topology, you would do something like:
+前の例とは異なり、`suffix-appender`は`IRichBolt`オブジェクトではなく`IRichBolt`を返す関数にバインドされます。これは、オプションマップに`:params`を指定することによって発生します。 よって、`suffix-appender`をトポロジで使うには、次のようにします:
 
 ```clojure
 (bolt-spec {"1" :shuffle}
@@ -140,7 +140,7 @@ Unlike the previous example, `suffix-appender` will be bound to a function that 
 
 #### Prepared bolts
 
-To do more complex bolts, such as ones that do joins and streaming aggregations, the bolt needs to store state. You can do this by creating a prepared bolt which is specified by including `{:prepare true}` in the option map. Consider, for example, this bolt that implements word counting:
+結合やストリーミングアグリゲーションなど複雑なBoltを実行するには、Boltに状態を格納する必要があります。これを行うには、オプションマップに`{:prepare true}`を含めてPrepared Boltを生成します。たとえば、ワードカウントを実装するこのボルトを考えてみましょう:
 
 ```clojure
 (defbolt word-count ["word" "count"] {:prepare true}
@@ -155,17 +155,17 @@ To do more complex bolts, such as ones that do joins and streaming aggregations,
          )))))
 ```
 
-The implementation for a prepared bolt is a function that takes as input the topology config, `TopologyContext`, and `OutputCollector`, and returns an implementation of the `IBolt` interface. This design allows you to have a closure around the implementation of `execute` and `cleanup`. 
+Prepared Boltの実装は、トポロジの設定、`TopologyContext`ならびに`OutputCollector`を入力として受け取り、`IBolt`インタフェースの実装を返します。この設計では、`execute`と` cleanup`の実装周辺にclosureを置くことができます。
 
-In this example, the word counts are stored in the closure in a map called `counts`. The `bolt` macro is used to create the `IBolt` implementation. The `bolt` macro is a more concise way to implement the interface than reifying, and it automatically type-hints all of the method parameters. This bolt implements the execute method which updates the count in the map and emits the new word count.
+この例では、単語数は`counts`というマップにおけるclosureに格納されます。`bolt`マクロは`IBolt`実装の生成に使用されます。`bolt`マクロは、インターフェースを実装するための具体的な実装よりも簡潔な方法であり、自動的にすべてのメソッドのパラメータに型ヒントを付けます。このBoltは、マップ内のカウントを更新し、新しい単語カウントを送出するexecuteメソッドを実装しています。
 
-Note that the `execute` method in prepared bolts only takes as input the tuple since the `OutputCollector` is already in the closure of the function (for simple bolts the collector is a second parameter to the `execute` function).
+Prepared Boltの`execute`メソッドは、`OutputCollector`がすでにその関数のclosureに入っているので、タプルを入力として受け取るだけです（単純なBoltの場合、コレクタは`execute`関数の第2パラメーターです）。
 
-Prepared bolts can be parameterized just like simple bolts.
+Prepared Boltは、シンプルなボルトのようにパラメータ化することができます。
 
 #### Output declarations
 
-The Clojure DSL has a concise syntax for declaring the outputs of a bolt. The most general way to declare the outputs is as a map from stream id a stream spec. For example:
+Clojure DSLには、Boltの出力を宣言するための簡潔な構文があります。出力を宣言する最も一般的な方法は、ストリームIDからストリーム仕様への対応付けです。例えば:
 
 ```clojure
 {"1" ["field1" "field2"]
@@ -173,37 +173,37 @@ The Clojure DSL has a concise syntax for declaring the outputs of a bolt. The mo
  "3" ["f1"]}
 ```
 
-The stream id is a string, while the stream spec is either a vector of fields or a vector of fields wrapped by `direct-stream`. `direct stream` marks the stream as a direct stream (See [Concepts](Concepts.html) and [Direct groupings]() for more details on direct streams).
+ストリームIDは文字列であり、ストリーム仕様はフィールドのベクトルか`direct-stream`で囲まれたフィールドのベクトルです。`direct stream`はストリームをダイレクトストリームとしてマークします(ダイレクトストリームの詳細については、[Concepts](Concepts.html)と[Direct groupings]()を参照してください)。
 
-If the bolt only has one output stream, you can define the default stream of the bolt by using a vector instead of a map for the output declaration. For example:
+Boltに出力ストリームが1つしかない場合は、出力宣言にマップではなくベクトルを使用して、Boltのデフォルトストリームを定義できます。例えば:
 
 ```clojure
 ["word" "count"]
 ```
-This declares the output of the bolt as the fields ["word" "count"] on the default stream id.
+これは、Boltの出力をデフォルトのストリームIDのフィールド["word" "count"]として宣言します。
 
 #### Emitting, acking, and failing
 
-Rather than use the Java methods on `OutputCollector` directly, the DSL provides a nicer set of functions for using `OutputCollector`: `emit-bolt!`, `emit-direct-bolt!`, `ack!`, and `fail!`.
+DSLは`OutputCollector`でJavaのメソッドを直接使用するよりより良い関数群を提供しています: `emit-bolt!`, `emit-direct-bolt!`, `ack!`, ならびに `fail!`です。
 
-1. `emit-bolt!`: takes as parameters the `OutputCollector`, the values to emit (a Clojure sequence), and keyword arguments for `:anchor` and `:stream`. `:anchor` can be a single tuple or a list of tuples, and `:stream` is the id of the stream to emit to. Omitting the keyword arguments emits an unanchored tuple to the default stream.
-2. `emit-direct-bolt!`: takes as parameters the `OutputCollector`, the task id to send the tuple to, the values to emit, and keyword arguments for `:anchor` and `:stream`. This function can only emit to streams declared as direct streams.
-2. `ack!`: takes as parameters the `OutputCollector` and the tuple to ack.
-3. `fail!`: takes as parameters the `OutputCollector` and the tuple to fail.
+1. `emit-bolt!`: `OutputCollector`、送出する値（Clojureのシーケンス）、`:anchor`と`:stream`のキーワード引数をパラメータとして取ります。`:anchor`は単一のタプルまたはタプルのリストであり、`:stream`は送出するストリームのIDです。 キーワード引数を省略すると、アンカーされていないタプルがデフォルトのストリームに送出されます。
+2. `emit-direct-bolt!`: `OutputCollector`、タプルを送信するタスクID、する値、`:anchor`と`:stream`のキーワード引数をパラメータとしてとります。この関数は、ダイレクトストリームとして宣言されたストリームにのみ送出できます。
+2. `ack!`: `OutputCollector`とackすべきタプルを引数として受け取ります。
+3. `fail!`: `OutputCollector`とfailすべきタプルを引数として受け取ります。
 
-See [Guaranteeing message processing](Guaranteeing-message-processing.html) for more info on acking and anchoring.
+ackingとanchoringの詳細については、[メッセージ処理の保証](Guaranteeing-message-processing.html)を参照してください。
 
 ### defspout
 
-`defspout` is used for defining spouts in Clojure. Like bolts, spouts must be serializable so you can't just reify `IRichSpout` to do spout implementations in Clojure. `defspout` works around this restriction and provides a nicer syntax for defining spouts than just implementing a Java interface.
+`defspout`はClojureでスパウトを定義するために使われます。Boltと同様に、Spoutは直列化可能でなければならないので、ClojureでSpoutの実装を行うために単に`IRichSpout`を使用することはできません。`defspout`はこの制限を回避し、Javaインターフェースを実装するだけではなく、Spoutを定義するためのより良い構文を提供します。
 
-The signature for `defspout` looks like the following:
+`defspout`のシグネチャは次のようになります：
 
 (defspout _name_ _output-declaration_ *_option-map_ & _impl_)
 
-If you leave out the option map, it defaults to {:prepare true}. The output declaration for `defspout` has the same syntax as `defbolt`.
+オプションマップを省略すると、デフォルトは{:prepare true}になります。`defspout`の出力宣言は`defbolt`と同じ構文です。
 
-Here's an example `defspout` implementation from [storm-starter]({{page.git-blob-base}}/examples/storm-starter/src/clj/org/apache/storm/starter/clj/word_count.clj):
+ここでは、[storm-starter]({{page.git-blob-base}}/examples/storm-starter/src/clj/org/apache/storm/starter/clj/word_count.clj)におけるの`defspout`の実装を示します:
 
 ```clojure
 (defspout sentence-spout ["sentence"]
@@ -224,15 +224,15 @@ Here's an example `defspout` implementation from [storm-starter]({{page.git-blob
         ))))
 ```
 
-The implementation takes in as input the topology config, `TopologyContext`, and `SpoutOutputCollector`. The implementation returns an `ISpout` object. Here, the `nextTuple` function emits a random sentence from `sentences`. 
+実装は、トポロジの設定、`TopologyContext`と`SpoutOutputCollector`を入力として受け取ります。実装は`ISpout`オブジェクトを返します。ここで、`nextTuple`関数は、`sentences`からランダムな文を送出します。
 
-This spout isn't reliable, so the `ack` and `fail` methods will never be called. A reliable spout will add a message id when emitting tuples, and then `ack` or `fail` will be called when the tuple is completed or failed respectively. See [Guaranteeing message processing](Guaranteeing-message-processing.html) for more info on how reliability works within Storm.
+このSpoutはreliableでないので、`ack`メソッドと`fail`メソッドは決して呼び出されません。reliableなSpoutは、タプルを送出するときにメッセージIDを追加し、タプルが完了したときまたは失敗したときに、`ack`または`fail`が呼び出されます。Stormにおけるでの信頼性の仕組みについては、[メッセージ処理の保証](Guaranteeing-message-processing.html)を参照してください。
 
-`emit-spout!` takes in as parameters the `SpoutOutputCollector` and the new tuple to be emitted, and accepts as keyword arguments `:stream` and `:id`. `:stream` specifies the stream to emit to, and `:id` specifies a message id for the tuple (used in the `ack` and `fail` callbacks). Omitting these arguments emits an unanchored tuple to the default output stream.
+`emit-spout!`は`SpoutOutputCollector`と送出される新しいタプルをパラメータとして取り込み、キーワード引数`:stream`と`:id`を受け取ります。`:stream`は送出するストリームを指定し、`:id`はタプルのメッセージIDを指定します（`ack`や`fail`コールバックで使用されます）。これらの引数を省略すると、デフォルト出力ストリームにanchorされていないタプルが送出されます。
 
-There is also a `emit-direct-spout!` function that emits a tuple to a direct stream and takes an additional argument as the second parameter of the task id to send the tuple to.
+ダイレクトストリームにタプルを送出し、タプルを送信するタスクIDの第2パラメータとして追加の引数を取る`emit-direct-spout!`関数もあります。
 
-Spouts can be parameterized just like bolts, in which case the symbol is bound to a function returning `IRichSpout` instead of the `IRichSpout` itself. You can also declare an unprepared spout which only defines the `nextTuple` method. Here is an example of an unprepared spout that emits random sentences parameterized at runtime:
+SpoutはBoltのようにパラメータ化することができます。この場合、シンボルは`IRichSpout`自体ではなく`IRichSpout`を返す関数にバインドされています。また、`nextTuple`メソッドだけを定義するunpreparedなSpoutを宣言することもできます。実行時にパラメータ化されたランダムな文章を出力する、unpreparedなSpoutの例を次に示します:
 
 ```clojure
 (defspout sentence-spout-parameterized ["word"] {:params [sentences] :prepare false}
@@ -241,7 +241,7 @@ Spouts can be parameterized just like bolts, in which case the symbol is bound t
   (emit-spout! collector [(rand-nth sentences)]))
 ```
 
-The following example illustrates how to use this spout in a `spout-spec`:
+次の例は、このSpoutを`spout-spec`でどのように使うかを示しています:
 
 ```clojure
 (spout-spec (sentence-spout-parameterized
@@ -252,9 +252,9 @@ The following example illustrates how to use this spout in a `spout-spec`:
 
 ### Running topologies in local mode or on a cluster
 
-That's all there is to the Clojure DSL. To submit topologies in remote mode or local mode, just use the `StormSubmitter` or `LocalCluster` classes just like you would from Java.
+以上がClojure DSLのすべてです。リモートモードまたはローカルモードでトポロジを送信するには、Javaの場合と同じように`StormSubmitter`または`LocalCluster`クラスを使用してください。
 
-To create topology configs, it's easiest to use the `org.apache.storm.config` namespace which defines constants for all of the possible configs. The constants are the same as the static constants in the `Config` class, except with dashes instead of underscores. For example, here's a topology config that sets the number of workers to 15 and configures the topology in debug mode:
+トポロジの設定を生成するには、すべての可能なコンフィグレーションの定数を定義する `org.apache.storm.config`ネームスペースを使うのが最も簡単です。定数は`Config`クラスのスタティック定数と同じですが、アンダースコアの代わりにダッシュを使用します。たとえば、次のトポロジの設定では、ワーカー数を15に設定し、トポロジをデバッグモードで設定します:
 
 ```clojure
 {TOPOLOGY-DEBUG true
@@ -263,4 +263,4 @@ To create topology configs, it's easiest to use the `org.apache.storm.config` na
 
 ### Testing topologies
 
-[This blog post](http://www.pixelmachine.org/2011/12/17/Testing-Storm-Topologies.html) and its [follow-up](http://www.pixelmachine.org/2011/12/21/Testing-Storm-Topologies-Part-2.html) give a good overview of Storm's powerful built-in facilities for testing topologies in Clojure.
+[このブログの記事](http://www.pixelmachine.org/2011/12/17/Testing-Storm-Topologies.html)とその[フォローアップ](http://www.pixelmachine.org/2011/12/21/Testing-Storm-Topologies-Part-2.html)は、ClojureのトポロジをテストするためのStormの強力な組み込み機能の概要を示しています。
