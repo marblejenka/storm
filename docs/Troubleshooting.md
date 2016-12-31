@@ -4,80 +4,80 @@ layout: documentation
 documentation: true
 ---
 
-This page lists issues people have run into when using Storm along with their solutions.
+このページには、Stormを使用する際に人々が遭遇した問題ならびにその解決方法が記載されています。
 
 ### Worker processes are crashing on startup with no stack trace
 
-Possible symptoms:
- 
- * Topologies work with one node, but workers crash with multiple nodes
+考えられる症状:
 
-Solutions:
+ * トポロジは1つのノードで動作しますが、複数のノードではクラッシュする
 
- * You may have a misconfigured subnet, where nodes can't locate other nodes based on their hostname. ZeroMQ sometimes crashes the process when it can't resolve a host. There are two solutions:
-  * Make a mapping from hostname to IP address in /etc/hosts
-  * Set up an internal DNS so that nodes can locate each other based on hostname.
+解決方法:
+
+ * サブネットが誤って設定されている可能性があります。サブネットでは、ホスト名に基づいてノードを見つけることができません。 ZeroMQは、ホストを解決できない場合にプロセスをクラッシュさせることがあります。2つのソリューションがあります。
+  * /etc/hostsでホスト名からIPアドレスへのマッピングを行う
+  * ノードがホスト名に基づいてお互いを見つけることができるように内部DNSを設定する。
   
 ### Nodes are unable to communicate with each other
 
-Possible symptoms:
+考えられる症状:
 
- * Every spout tuple is failing
- * Processing is not working
+ * すべてのスパウトタプルが失敗しています
+ * 処理が動いていない
 
-Solutions:
+解決方法:
 
- * Storm doesn't work with ipv6. You can force ipv4 by adding `-Djava.net.preferIPv4Stack=true` to the supervisor child options and restarting the supervisor. 
- * You may have a misconfigured subnet. See the solutions for `Worker processes are crashing on startup with no stack trace`
+ * ストームはipv6では動作しません ipv4を強制するには、スーパーバイザのchild optionに`-Djava.net.preferIPv4Stack=true`を追加し、スーパーバイザを再起動します。
+ * サブネットの設定が間違っている可能性があります。`Worker processes are crashing on startup with no stack trace`の解決策を参照してください。
 
 ### Topology stops processing tuples after awhile
 
-Symptoms:
+症状:
 
- * Processing works fine for awhile, and then suddenly stops and spout tuples start failing en masse. 
+ * 処理はしばらくの間うまくいき、その後突然停止しSpoutタプルが大量に失敗する。
  
-Solutions:
+解決方法:
 
- * This is a known issue with ZeroMQ 2.1.10. Downgrade to ZeroMQ 2.1.7.
+ * これはZeroMQ 2.1.10の既知の問題です。ZeroMQ 2.1.7にダウングレードしてください。
  
 ### Not all supervisors appear in Storm UI
 
-Symptoms:
+症状:
  
- * Some supervisor processes are missing from the Storm UI
- * List of supervisors in Storm UI changes on refreshes
+ * いくつかのスーパバイザプロセスがStorm UIで見つからない
+ * Storm UIをリフレッシュするとスーパバイザが違うものになる
 
-Solutions:
+解決方法:
 
- * Make sure the supervisor local dirs are independent (e.g., not sharing a local dir over NFS)
- * Try deleting the local dirs for the supervisors and restarting the daemons. Supervisors create a unique id for themselves and store it locally. When that id is copied to other nodes, Storm gets confused. 
+ * スーパーバイザのローカルディレクトリが独立していることを確認する(NFS上でローカルディレクトリを共有していないかなど)
+ * スーパーバイザのローカルディレクトリを削除し、デーモンを再起動してください。スーパーバイザは、ユニークなIDを作成してローカルに格納します。そのIDが他のノードにコピーされると、Stormは混乱します。
 
 ### "Multiple defaults.yaml found" error
 
-Symptoms:
+症状:
 
- * When deploying a topology with "storm jar", you get this error
+ * "storm jar"でトポロジをデプロイすると、このエラーが発生する
 
-Solution:
+解決方法:
 
- * You're most likely including the Storm jars inside your topology jar. When packaging your topology jar, don't include the Storm jars as Storm will put those on the classpath for you.
+ * トポロジのjarの中にStormのjarを入れている可能性が最も高いです。あなたのトポロジをjarにパッケージするときは、Stormのjarを含めないでください。Stormのjarはクラスパスに入るはずです。
 
 ### "NoSuchMethodError" when running storm jar
 
-Symptoms:
+症状:
 
- * When running storm jar, you get a cryptic "NoSuchMethodError"
+ * Stormのjarを実行する際に、謎の"NoSuchMethodError"が発生する
 
-Solution:
+解決方法:
 
- * You're deploying your topology with a different version of Storm than you built your topology against. Make sure the storm client you use comes from the same version as the version you compiled your topology against.
+ * あなたはあなたのトポロジをビルドしたのとは異なるバージョンのStormに、あなたのトポロジをデプロイしています。使用するStormクライアントが、トポロジをコンパイルしたバージョンと同じバージョンであることを確認してください。
 
 
 ### Kryo ConcurrentModificationException
 
-Symptoms:
+症状:
 
- * At runtime, you get a stack trace like the following:
+ * 実行時に、次のようなスタックトレースが出てくる:
 
 ```
 java.lang.RuntimeException: java.util.ConcurrentModificationException
@@ -109,16 +109,16 @@ Caused by: java.util.ConcurrentModificationException
 	at org.apache.storm.serialization.KryoValuesSerializer.serializeInto(KryoValuesSerializer.java:27)
 ```
 
-Solution: 
+解決方法: 
 
- * This means that you're emitting a mutable object as an output tuple. Everything you emit into the output collector must be immutable. What's happening is that your bolt is modifying the object while it is being serialized to be sent over the network.
+ * これは出力タプルとして可変オブジェクトを出力していることを意味します。出力コレクターにemitするすべてのものはimmutableでなければなりません。何が起こっているのは、あなたのBoltが、ネットワーク上で送信されるようにシリアル化されている間にオブジェクトを修正しているということです。
 
 
 ### NullPointerException from deep inside Storm
 
-Symptoms:
+症状:
 
- * You get a NullPointerException that looks something like:
+ * 次のようなNullPointerExceptionが出てくる:
 
 ```
 java.lang.RuntimeException: java.lang.NullPointerException
@@ -140,7 +140,7 @@ Caused by: java.lang.NullPointerException
     ... 6 more
 ```
 
-or 
+または、 
 
 ```
 java.lang.RuntimeException: java.lang.NullPointerException
@@ -177,6 +177,6 @@ org.apache.storm.utils.DisruptorQueue.consumeBatchToCursor(DisruptorQueue.java:1
         ... 6 common frames omitted
 ```
 
-Solution:
+解決方法:
 
- * This is caused by having multiple threads issue methods on the `OutputCollector`. All emits, acks, and fails must happen on the same thread. One subtle way this can happen is if you make a `IBasicBolt` that emits on a separate thread. `IBasicBolt`'s automatically ack after execute is called, so this would cause multiple threads to use the `OutputCollector` leading to this exception. When using a basic bolt, all emits must happen in the same thread that runs `execute`.
+ * これは、複数のスレッドが`OutputCollector`に何かしらのメソッドを発行することによって発生します。すべてのemit、ack、およびfailは、同じスレッドで発生する必要があります。これが起こる可能性のある微妙な方法の1つは、別のスレッドでemitを行う`IBasicBolt`を作成する場合です。`IBasicBolt`では、executeの後に自動的にackが呼び出されるので、複数のスレッドで`OutputCollector`を使用するとこの例外を起こしえます。Basic Boltを使用する場合、すべてのemitは`execute`を実行するのと同じスレッドで行わなければなりません。
