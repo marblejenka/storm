@@ -4,23 +4,23 @@ layout: documentation
 documentation: true
 ---
 
-The core data model in Trident is the "Stream", processed as a series of batches. A stream is partitioned among the nodes in the cluster, and operations applied to a stream are applied in parallel across each partition.
+Tridentの中核となるデータモデルは、一連のバッチとして処理される"Stream"です。ストリームはクラスタ内のノード間で分割され、ストリームに適用される操作は各パーティション間で並列に適用されます。
 
-There are five kinds of operations in Trident:
+Tridentには5種類の操作があります:
 
-1. Operations that apply locally to each partition and cause no network transfer
-2. Repartitioning operations that repartition a stream but otherwise don't change the contents (involves network transfer)
-3. Aggregation operations that do network transfer as part of the operation
-4. Operations on grouped streams
-5. Merges and joins
+1. 各パーティションローカルに適用され、ネットワーク転送を行わない操作
+2. ストリームを再分割するが、コンテンツを変更しない再分割操作(ネットワーク転送を伴う)
+3. 操作の一部としてネットワーク転送を行う集約操作
+4. グループ化されたストリームに対する操作
+5. マージと結合
 
 ## Partition-local operations
 
-Partition-local operations involve no network transfer and are applied to each batch partition independently.
+パーティションローカルな操作はネットワーク転送を伴わず、各バッチのパーティションに独立して適用されます。
 
 ### Functions
 
-A function takes in a set of input fields and emits zero or more tuples as output. The fields of the output tuple are appended to the original input tuple in the stream. If a function emits no tuples, the original input tuple is filtered out. Otherwise, the input tuple is duplicated for each output tuple. Suppose you have this function:
+関数は入力フィールドの集合を取り込み、出力としてゼロ個以上のタプルをemitします。出力タプルのフィールドは、ストリーム内の元の入力タプルに追加されます。関数がタプルをemitしない場合、元の入力タプルはフィルタされて取り除かれます。それ以外の場合、入力タプルは出力タプルごとに複製されます。以下の関数があるとします:
 
 ```java
 public class MyFunction extends BaseFunction {
@@ -32,7 +32,7 @@ public class MyFunction extends BaseFunction {
 }
 ```
 
-Now suppose you have a stream in the variable "mystream" with the fields ["a", "b", "c"] with the following tuples:
+ここで、変数"mystream"に、["a", "b", "c"]というフィールドを持つストリームが次のタプルであるとします:
 
 ```
 [1, 2, 3]
@@ -40,13 +40,13 @@ Now suppose you have a stream in the variable "mystream" with the fields ["a", "
 [3, 0, 8]
 ```
 
-If you run this code:
+以下のコードを実行すると:
 
 ```java
 mystream.each(new Fields("b"), new MyFunction(), new Fields("d")))
 ```
 
-The resulting tuples would have fields ["a", "b", "c", "d"] and look like this:
+結果のタプルにはフィールド["a", "b", "c", "d"]があり、次のようになります:
 
 ```
 [1, 2, 3, 0]
@@ -56,7 +56,7 @@ The resulting tuples would have fields ["a", "b", "c", "d"] and look like this:
 
 ### Filters
 
-Filters take in a tuple as input and decide whether or not to keep that tuple or not. Suppose you had this filter:
+フィルタはタプルを入力として受け取り、そのタプルを保持するかどうかを決定します。以下のフィルタがあったとします:
 
 ```java
 public class MyFilter extends BaseFilter {
@@ -66,7 +66,7 @@ public class MyFilter extends BaseFilter {
 }
 ```
 
-Now suppose you had these tuples with fields ["a", "b", "c"]:
+ここで、フィールド["a", "b", "c"]を持つ以下のタプルがあるとします:
 
 ```
 [1, 2, 3]
@@ -74,13 +74,13 @@ Now suppose you had these tuples with fields ["a", "b", "c"]:
 [2, 3, 4]
 ```
 
-If you ran this code:
+以下のコードを実行すると:
 
 ```java
 mystream.filter(new MyFilter())
 ```
 
-The resulting tuples would be:
+結果のタプルは次のようになります:
 
 ```
 [1, 2, 3]
@@ -88,11 +88,11 @@ The resulting tuples would be:
 
 ### map and flatMap
 
-`map` returns a stream consisting of the result of applying the given mapping function to the tuples of the stream. This
-can be used to apply a one-one transformation to the tuples.
+`map`は与えられたマッピング関数をタプルのストリームに適用した結果からなるストリームを返します。
+これは、1対1の変換をタプルに適用するために使用できます。
 
-For example, if there is a stream of words and you wanted to convert it to a stream of upper case words,
-you could define a mapping function as follows,
+たとえば、単語のストリームがあり、それを大文字の単語のストリームに変換したい場合は、
+次のようにマッピング関数を定義することができます。
 
 ```java
 public class UpperCase extends MapFunction {
@@ -103,17 +103,17 @@ public class UpperCase extends MapFunction {
 }
 ```
 
-The mapping function can then be applied on the stream to produce a stream of uppercase words.
+次に、マッピング関数をストリームに適用して大文字のストリームを生成することができます。
 
 ```java
 mystream.map(new UpperCase())
 ```
 
-`flatMap` is similar to `map` but has the effect of applying a one-to-many transformation to the values of the stream,
-and then flattening the resulting elements into a new stream.
+`flatMap`は`map`に似ていますが、ストリームの値に一対多変換を適用するという効果があります。
+結果として得られた要素を新しいストリームに平坦化します。
 
-For example, if there is a stream of sentences and you wanted to convert it to a stream of words,
-you could define a flatMap function as follows,
+たとえば、文のストリームがあり、それを単語のストリームに変換したい場合は、
+次のようにflatMap関数を定義することができます、
 
 ```java
 public class Split extends FlatMapFunction {
@@ -128,22 +128,23 @@ public class Split extends FlatMapFunction {
 }
 ```
 
-The flatMap function can then be applied on the stream of sentences to produce a stream of words,
+flatMap関数を文のストリームに適用して単語のストリームを生成し、
 
 ```java
 mystream.flatMap(new Split())
 ```
 
-Of course these operations can be chained, so a stream of uppercase words can be obtained from a stream of sentences as follows,
+もちろん、これらの操作は連鎖させることができるので、次のように文のストリームから大文字になった単語のストリームを得ることができます、
 
 ```java
 mystream.flatMap(new Split()).map(new UpperCase())
 ```
 ### peek
-`peek` can be used to perform an additional action on each trident tuple as they flow through the stream.
- This could be useful for debugging to see the tuples as they flow past a certain point in a pipeline.
+`peek`を使って、それぞれのTridentタプルがストリームを流れるときに、追加のアクションを実行することができます。
+これは、パイプラインの特定のポイントを流れていくタプルをデバッグするのに便利です。
 
-For example, the below code would print the result of converting the words to uppercase before they are passed to `groupBy`
+例えば、以下のコードは`groupBy`に渡される前に単語を大文字に変換した結果を出力します
+
 ```java
  mystream.flatMap(new Split()).map(new UpperCase())
          .peek(new Consumer() {
@@ -157,9 +158,9 @@ For example, the below code would print the result of converting the words to up
 ```
 
 ### min and minBy
-`min` and `minBy` operations return minimum value on each partition of a batch of tuples in a trident stream.
+`min`および`minBy`演算は、Tridentのストリームにおけるタプルのバッチについての各パーティションにおける最小値を返します。
 
-Suppose, a trident stream contains fields ["device-id", "count"] and the following partitions of tuples
+Tridentのストリームにフィールド["device-id", "count"]と次のタプルのパーティションが含まれているとします
 
 ```
 Partition 0:
@@ -192,12 +193,12 @@ Partition 2:
 
 ```
 
-`minBy` operation can be applied on the above stream of tuples like below which results in emitting tuples with minimum values of `count` field in each partition.
+`minBy`演算は、上記のようなタプルのストリームに対して適用することができ、その結果、各パーティション内の最小のcountフィールドの値を持つタプルがemitされます。
 
 ``` java
   mystream.minBy(new Fields("count"))
 ```
-Result of the above code on mentioned partitions is:
+前述のパーティションについてのコードの結果は次のとおりです:
  
 ```
 Partition 0:
@@ -213,12 +214,13 @@ Partition 2:
 
 ```
 
-You can look at other `min` and `minBy` operations on Stream
+ストリームにおける他の`min`および`minBy`操作を見ることができます
+
 ``` java
       public <T> Stream minBy(String inputFieldName, Comparator<T> comparator) 
       public Stream min(Comparator<TridentTuple> comparator) 
 ```
-Below example shows how these APIs can be used to find minimum using respective Comparators on a tuple. 
+下の例は、タプル上のそれぞれのコンパレータを使用してこれらのAPIを使用して最小値を見つける方法を示しています。
 
 ``` java
 
@@ -238,19 +240,19 @@ Below example shows how these APIs can be used to find minimum using respective 
                 .each(vehicleField, new Debug("#### least efficient vehicle"));
 
 ```
-Example applications of these APIs can be located at [TridentMinMaxOfDevicesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfDevicesTopology.java) and [TridentMinMaxOfVehiclesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfVehiclesTopology.java) 
+これらのAPIのアプリケーション例は、[TridentMinMaxOfDevicesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfDevicesTopology.java)と[TridentMinMaxOfVehiclesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfVehiclesTopology.java)にあります。
 
 ### max and maxBy
-`max` and `maxBy` operations return maximum value on each partition of a batch of tuples in a trident stream.
+`max`と`maxBy`オペレーションは、Tridentのストリームにおけるタプルのバッチについて、各パーティションにおける最大値を返します。
 
-Suppose, a trident stream contains fields ["device-id", "count"] as mentioned in the above section.
+Tridentのストリームには、上のセクションで説明したフィールド["device-id", "count"]が含まれているとします。
 
-`max` and `maxBy` operations can be applied on the above stream of tuples like below which results in emitting tuples with maximum values of `count` field for each partition.
+`max`と`maxBy`演算は上記のようなタプルのストリームに適用することができ、その結果、各パーティションの`count`フィールドの最大値を持つタプルがemitされます。
 
 ``` java
   mystream.maxBy(new Fields("count"))
 ```
-Result of the above code on mentioned partitions is:
+前述のパーティションについてのコードの結果は次のとおりです:
  
 ```
 Partition 0:
@@ -266,7 +268,7 @@ Partition 2:
 
 ```
 
-You can look at other `max` and `maxBy` functions on Stream
+ストリーム上の他の`max`と`maxBy`関数を見ることができます
 
 ``` java
 
@@ -275,7 +277,7 @@ You can look at other `max` and `maxBy` functions on Stream
       
 ```
 
-Below example shows how these APIs can be used to find maximum using respective Comparators on a tuple.
+以下の例は、タプル上のそれぞれのコンパレータを使用してこれらのAPIを使用して最大値を見つける方法を示しています。
 
 ``` java
 
@@ -297,16 +299,17 @@ Below example shows how these APIs can be used to find maximum using respective 
 
 ```
 
-Example applications of these APIs can be located at [TridentMinMaxOfDevicesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfDevicesTopology.java) and [TridentMinMaxOfVehiclesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfVehiclesTopology.java) 
+これらのAPIのアプリケーション例は、[TridentMinMaxOfDevicesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfDevicesTopology.java)と[TridentMinMaxOfVehiclesTopology](https://github.com/apache/storm/blob/master/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentMinMaxOfVehiclesTopology.java)にあります。
 
 ### Windowing
-Trident streams can process tuples in batches which are of the same window and emit aggregated result to the next operation. 
-There are two kinds of windowing supported which are based on processing time or tuples count:
-    1. Tumbling window
-    2. Sliding window
+Tridentストリームは、同じウィンドウとしてバッチ内のタプルを処理し、集計結果を次の操作にemitすることができます。
+processing timeまたはタプルの数に基づく2種類のウィンドウ処理がサポートされています:
+
+1. Tumbling window
+2. Sliding window
 
 #### Tumbling window
-Tuples are grouped in a single window based on processing time or count. Any tuple belongs to only one of the windows.
+タプルは、processing timeまたはカウントに基づいて1つのウィンドウにグループ化されます。どのタプルも1つのウィンドウにしか属しません。
 
 ```java 
 
@@ -325,7 +328,7 @@ Tuples are grouped in a single window based on processing time or count. Any tup
 ```
 
 #### Sliding window
-Tuples are grouped in windows and window slides for every sliding interval. A tuple can belong to more than one window.
+タプルは、スライディング間隔ごとにウィンドウとウィンドウのスライドにグループ化されます。タプルは複数のウィンドウに属することができます。
 
 ```java
  
@@ -344,10 +347,10 @@ Tuples are grouped in windows and window slides for every sliding interval. A tu
                                     WindowsStoreFactory windowStoreFactory, Fields inputFields, Aggregator aggregator, Fields functionFields);
 ```
 
-Examples of tumbling and sliding windows can be found [here](Windowing.html)
+タンブリングやスライディングウィンドウの例は、[ここ](Windowing.html)にあります
 
 #### Common windowing API
-Below is the common windowing API which takes `WindowConfig` for any supported windowing configurations. 
+以下は、サポートされているすべてのウィンドウ設定に対して`WindowConfig`をとる一般的なウィンドウAPIです。
 
 ```java
 
@@ -356,16 +359,15 @@ Below is the common windowing API which takes `WindowConfig` for any supported w
                          
 ```
 
-`windowConfig` can be any of the below.
+`windowConfig`は、以下のいずれかになります。
+
  - `SlidingCountWindow.of(int windowCount, int slidingCount)`
  - `SlidingDurationWindow.of(BaseWindowedBolt.Duration windowDuration, BaseWindowedBolt.Duration slidingDuration)`
  - `TumblingCountWindow.of(int windowLength)`
  - `TumblingDurationWindow.of(BaseWindowedBolt.Duration windowLength)`
  
- 
-Trident windowing APIs need `WindowsStoreFactory` to store received tuples and aggregated values. Currently, basic implementation 
-for HBase is given with `HBaseWindowsStoreFactory`. It can further be extended to address respective usecases. 
-Example of using `HBaseWindowStoreFactory` for windowing can be seen below.    
+トライデントのウィンドウAPIには、受け取ったタプルと集計値を格納するための`WindowsStoreFactory`が必要です 現在、HBaseについての基本的な実装は `HBaseWindowsStoreFactory`で与えられています。これらは、それぞれのユースケースに対応するためにさらに拡張することができます。
+ウィンドウ処理に`HBaseWindowStoreFactory`を使用する例を以下に示します。
 
 ```java
 
@@ -392,22 +394,20 @@ Example of using `HBaseWindowStoreFactory` for windowing can be seen below.
     
 ```
 
-Detailed description of all the above APIs in this section can be found [here](javadocs/org/apache/storm/trident/Stream.html)  
+このセクションの上記すべてのAPIの詳細な説明は、[こちら](javadocs/org/apache/storm/trident/Stream.html)にあります
 
 #### Example applications
-Example applications of these APIs are located at [TridentHBaseWindowingStoreTopology]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentHBaseWindowingStoreTopology.java) 
-and [TridentWindowingInmemoryStoreTopology]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentWindowingInmemoryStoreTopology.java) 
-
+これらのAPIのサンプルアプリケーションは、[TridentHBaseWindowingStoreTopology]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentHBaseWindowingStoreTopology.java)と[TridentWindowingInmemoryStoreTopology]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/trident/TridentWindowingInmemoryStoreTopology.java)にあります
 
 ### partitionAggregate
 
-partitionAggregate runs a function on each partition of a batch of tuples. Unlike functions, the tuples emitted by partitionAggregate replace the input tuples given to it. Consider this example:
+partitionAggregateは、タプルのバッチの各パーティションで関数を実行します。functionとは異なり、partitionAggregateによってemitされたタプルは、与えられた入力タプルを置き換えます。この例を考えてみましょう:
 
 ```java
 mystream.partitionAggregate(new Fields("b"), new Sum(), new Fields("sum"))
 ```
 
-Suppose the input stream contained fields ["a", "b"] and the following partitions of tuples:
+入力ストリームにフィールド["a", "b"]と以下のタプルのパーティションが含まれているとします:
 
 ```
 Partition 0:
@@ -424,7 +424,7 @@ Partition 2:
 ["d", 10]
 ```
 
-Then the output stream of that code would contain these tuples with one field called "sum":
+そのコードの出力ストリームには、"sum"という1つのフィールドを持つこれらのタプルが含まれます:
 
 ```
 Partition 0:
@@ -437,9 +437,9 @@ Partition 2:
 [20]
 ```
 
-There are three different interfaces for defining aggregators: CombinerAggregator, ReducerAggregator, and Aggregator.
+aggregatorを定義するためのインターフェースには、次の3つのがあります: CombinerAggregator、ReducerAggregator、およびAggregatorです。
 
-Here's the interface for CombinerAggregator:
+CombinerAggregatorのインターフェイスは次のとおりです:
 
 ```java
 public interface CombinerAggregator<T> extends Serializable {
@@ -449,7 +449,7 @@ public interface CombinerAggregator<T> extends Serializable {
 }
 ```
 
-A CombinerAggregator returns a single tuple with a single field as output. CombinerAggregators run the init function on each input tuple and use the combine function to combine values until there's only one value left. If there's no tuples in the partition, the CombinerAggregator emits the output of the zero function. For example, here's the implementation of Count:
+CombinerAggregatorは、出力として単一のフィールドを持つ単一のタプルを返します。CombinerAggregatorsは各入力タプルに対してinit関数を実行し、combine関数を使用して1つの値が残るまで値をcombineします。パーティションにタプルがない場合、CombinerAggregatorはゼロ関数の出力をemitします。たとえば、Countの実装は次のとおりです:
 
 ```java
 public class Count implements CombinerAggregator<Long> {
@@ -467,9 +467,9 @@ public class Count implements CombinerAggregator<Long> {
 }
 ```
 
-The benefits of CombinerAggregators are seen when you use them with the aggregate method instead of partitionAggregate. In that case, Trident automatically optimizes the computation by doing partial aggregations before transferring tuples over the network.
+CombinerAggregatorの利点は、partitionAggregateではなくaggregateメソッドで使用するときに見られます。その場合、Tridentは、ネットワーク上でタプルを転送する前に、部分集計を実行することによって計算を自動的に最適化します。
 
-A ReducerAggregator has the following interface:
+ReducerAggregatorには、次のインタフェースがあります:
 
 ```java
 public interface ReducerAggregator<T> extends Serializable {
@@ -478,7 +478,7 @@ public interface ReducerAggregator<T> extends Serializable {
 }
 ```
 
-A ReducerAggregator produces an initial value with init, and then it iterates on that value for each input tuple to produce a single tuple with a single value as output. For example, here's how you would define Count as a ReducerAggregator:
+ReducerAggregatorはinitで初期値を生成し、各入力タプルに対してその値を反復処理して、単一の値を出力として持つ単一のタプルを生成します。たとえば、CountをReducerAggregatorとして定義する方法は次のとおりです:
 
 ```java
 public class Count implements ReducerAggregator<Long> {
@@ -492,9 +492,9 @@ public class Count implements ReducerAggregator<Long> {
 }
 ```
 
-ReducerAggregator can also be used with persistentAggregate, as you'll see later.
+ReducerAggregatorは、後で見るように、persistentAggregateとともに使用することもできます。
 
-The most general interface for performing aggregations is Aggregator, which looks like this:
+集約を実行するための最も一般的なインターフェースは、次のようなAggregatorです:
 
 ```java
 public interface Aggregator<T> extends Operation {
@@ -504,13 +504,13 @@ public interface Aggregator<T> extends Operation {
 }
 ```
 
-Aggregators can emit any number of tuples with any number of fields. They can emit tuples at any point during execution. Aggregators execute in the following way:
+Aggregatorは、任意の数のフィールドを持つ任意の数のタプルをemitできます。実行中の任意の時点でタプルをemitできます。Aggregatorは次のように実行されます:
 
-1. The init method is called before processing the batch. The return value of init is an Object that will represent the state of the aggregation and will be passed into the aggregate and complete methods.
-2. The aggregate method is called for each input tuple in the batch partition. This method can update the state and optionally emit tuples.
-3. The complete method is called when all tuples for the batch partition have been processed by aggregate. 
+1. バッチを処理する前にinitメソッドが呼び出されます。initの戻り値は、集約の状態を表すObjectであり、aggregateメソッドおよびcompleteメソッドに渡されます。
+2. aggregateメソッドは、バッチパーティション内の各入力タプルに対して呼び出されます。このメソッドは状態を更新することができ、また、タプルをemitすることもできます。
+3. completeメソッドは、バッチパーティションのすべてのタプルがaggregateによって処理されたときに呼び出されます。
 
-Here's how you would implement Count as an Aggregator:
+CountをAggregatorとして実装する方法は次のとおりです:
 
 ```java
 public class CountAgg extends BaseAggregator<CountState> {
@@ -532,7 +532,7 @@ public class CountAgg extends BaseAggregator<CountState> {
 }
 ```
 
-Sometimes you want to execute multiple aggregators at the same time. This is called chaining and can be accomplished like this:
+複数のaggregatorを同時に実行したい場合もあります。これは連鎖と呼ばれ、次のように実行できます:
 
 ```java
 mystream.chainedAgg()
@@ -541,85 +541,85 @@ mystream.chainedAgg()
         .chainEnd()
 ```
 
-This code will run the Count and Sum aggregators on each partition. The output will contain a single tuple with the fields ["count", "sum"].
+このコードは、各パーティションのCountおよびSum aggregatorを実行します。出力には、フィールド["count", "sum"]を持つ単一タプルが含まれます。
 
 ### stateQuery and partitionPersist
 
-stateQuery and partitionPersist query and update sources of state, respectively. You can read about how to use them on [Trident state doc](Trident-state.html).
+stateQueryおよびpartitionPersistは、それぞれ状態のソースをクエリおよび更新します。[Trident state doc](Trident-state.html)で使用方法を読むことができます。
 
 ### projection
 
-The projection method on Stream keeps only the fields specified in the operation. If you had a Stream with fields ["a", "b", "c", "d"] and you ran this code:
+Streamの射影では、操作で指定されたフィールドのみが保持されます。フィールド["a", "b", "c", "d"]を持つストリームがあり、このコードを実行した場合:
 
 ```java
 mystream.project(new Fields("b", "d"))
 ```
 
-The output stream would contain only the fields ["b", "d"].
+出力ストリームにはフィールド["b", "d"]のみが含まれます。
 
 
 ## Repartitioning operations
 
-Repartitioning operations run a function to change how the tuples are partitioned across tasks. The number of partitions can also change as a result of repartitioning (for example, if the parallelism hint is greater after repartioning). Repartitioning requires network transfer. Here are the repartitioning functions:
+再分割操作では、タプルがタスク間でどのように分割されるかについて変更する関数が実行されます。パーティションの数は、パーティション分割の結果として変更することもできます(たとえば、再分割後のparallelism hintが大きい場合など)。再パーティションにはネットワーク転送が必要です。再分割ができる関数は次のとおりです:
 
-1. shuffle: Use random round robin algorithm to evenly redistribute tuples across all target partitions
-2. broadcast: Every tuple is replicated to all target partitions. This can useful during DRPC – for example, if you need to do a stateQuery on every partition of data.
-3. partitionBy: partitionBy takes in a set of fields and does semantic partitioning based on that set of fields. The fields are hashed and modded by the number of target partitions to select the target partition. partitionBy guarantees that the same set of fields always goes to the same target partition.
-4. global: All tuples are sent to the same partition. The same partition is chosen for all batches in the stream.
-5. batchGlobal: All tuples in the batch are sent to the same partition. Different batches in the stream may go to different partitions. 
-6. partition: This method takes in a custom partitioning function that implements org.apache.storm.grouping.CustomStreamGrouping
+1. shuffle: ランダムラウンドロビンアルゴリズムを使用して、タプルをすべてのターゲットパーティションに均等に再分配する
+2. broadcast: すべてのタプルがすべてのターゲットパーティションに複製されます。これはDRPCで役立ちます - たとえば、データのすべてのパーティションでstateQueryを実行する必要がある場合などです。
+3. partitionBy: partitionByはフィールドの集合を取り込み、そのフィールドの集合に基づいてセマンティクパーティショニングを行います。 フィールドはハッシュ化され、そのmod値でターゲットパーティションを選択します。partitionByは、同じフィールドの集合が常に同じターゲットパーティションに移動することを保証します。
+4. global: すべてのタプルは同じパーティションに送られます ストリーム内のすべてのバッチに対して同じパーティションが選択されます。
+5. batchGlobal: バッチ内のすべてのタプルが同じパーティションに送信されます。ストリーム内のさまざまなバッチが異なるパーティションに移動することがあります。
+6. partition: このメソッドは、org.apache.storm.grouping.CustomStreamGroupingを実装するカスタムパーティショニング関数を取ります
 
 ## Aggregation operations
 
-Trident has aggregate and persistentAggregate methods for doing aggregations on Streams. aggregate is run on each batch of the stream in isolation, while persistentAggregate will aggregation on all tuples across all batches in the stream and store the result in a source of state.
+Tridentには、Streamで集計を実行するためのaggregateおよびpersistentAggregateメソッドがあります。aggregateはストリームの各バッチで独立して実行される一方で、persistentAggregateはストリーム内のすべてのバッチのすべてのタプルを集約し、その結果を状態のソースに格納します。
 
-Running aggregate on a Stream does a global aggregation. When you use a ReducerAggregator or an Aggregator, the stream is first repartitioned into a single partition, and then the aggregation function is run on that partition. When you use a CombinerAggregator, on the other hand, first Trident will compute partial aggregations of each partition, then repartition to a single partition, and then finish the aggregation after the network transfer. CombinerAggregator's are far more efficient and should be used when possible.
+Stream上で集約を実行すると、グローバルな集計が行われます。ReducerAggregatorまたはAggregatorを使用すると、ストリームは最初に単一のパーティションに再分割され、そのパーティションで集約関数が実行されます。一方、CombinerAggregatorを使用する場合は、最初にTridentが各パーティションの部分集計を計算し、その後、単一のパーティションに再分割し、ネットワーク転送後に集約を完了します。CombinerAggregatorの方がはるかに効率的で、可能な限り使用するべきです。
 
-Here's an example of using aggregate to get a global count for a batch:
+aggregateを使用してバッチのグローバルなカウントを取得する例を次に示します:
 
 ```java
 mystream.aggregate(new Count(), new Fields("count"))
 ```
 
-Like partitionAggregate, aggregators for aggregate can be chained. However, if you chain a CombinerAggregator with a non-CombinerAggregator, Trident is unable to do the partial aggregation optimization.
+partitionAggregateと同様に、aggregateのaggregatorは連鎖できます。ただし、CombinerAggregatorを非CombinerAggregatorと連鎖させると、Tridentは部分集計の最適化を行うことができません。
 
-You can read more about how to use persistentAggregate in the [Trident state doc](Trident-state.html).
+[Trident state doc](Trident-state.html)で、persistentAggregateの使用方法の詳細を読むことができます。
 
 ## Operations on grouped streams
 
-The groupBy operation repartitions the stream by doing a partitionBy on the specified fields, and then within each partition groups tuples together whose group fields are equal. For example, here's an illustration of a groupBy operation:
+groupBy操作は、指定されたフィールドでpartitionByを実行してストリームを再分割し、その後、各パーティション内でグループ化するフィールドが等しいタプルをグループ化します。たとえば、groupBy操作の例を次に示します。
 
 ![Grouping](images/grouping.png)
 
-If you run aggregators on a grouped stream, the aggregation will be run within each group instead of against the whole batch. persistentAggregate can also be run on a GroupedStream, in which case the results will be stored in a [MapState]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/MapState.java) with the key being the grouping fields. You can read more about persistentAggregate in the [Trident state doc](Trident-state.html).
+グループ化されたストリームでaggregatorを実行する場合、集約はバッチ全体ではなく各グループ内で実行されます。persistentAggregateはGroupedStreamで実行することもできます。その場合、結果は、キーをグループ化フィールドとして、[MapState]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/MapState.java)に格納されます。persistentAggregateの詳細については、[Trident state doc](Trident-state.html)を参照してください。
 
-Like regular streams, aggregators on grouped streams can be chained.
+通常のストリームと同様に、グループ化されたストリームのaggregatorも連鎖できます。
 
 ## Merges and joins
 
-The last part of the API is combining different streams together. The simplest way to combine streams is to merge them into one stream. You can do that with the TridentTopology#merge method, like so:
+APIの最後の部分では、さまざまなストリームを結合しています。ストリームを結合する最も簡単な方法は、ストリームを1つのストリームにマージすることです。 TridentTopology#mergeメソッドを使用すると、次のようにすることができます:
 
 ```java
 topology.merge(stream1, stream2, stream3);
 ```
 
-Trident will name the output fields of the new, merged stream as the output fields of the first stream.
+Tridentは、新しくmergeされたストリームの出力フィールドを、引数の最初のストリームの出力フィールドを使って名前付けします。
 
-Another way to combine streams is with a join. Now, a standard join, like the kind from SQL, require finite input. So they don't make sense with infinite streams. Joins in Trident only apply within each small batch that comes off of the spout. 
+ストリームを結合する別の方法は、Joinを使用する方法です。現在、SQLのような標準的な結合には有限の入力が必要です。このため、それは無限の流れでは意味をなしません。TridentのJoinは、Spoutから出てくる小さなバッチ内にのみ適用されます。
 
-Here's an example join between a stream containing fields ["key", "val1", "val2"] and another stream containing ["x", "val1"]:
+フィールド ["key", "val1", "val2"]を含むストリームと、["x", "val1"]含む別のストリームをJoinする例を次に示します:
 
 ```java
 topology.join(stream1, new Fields("key"), stream2, new Fields("x"), new Fields("key", "a", "b", "c"));
 ```
 
-This joins stream1 and stream2 together using "key" and "x" as the join fields for each respective stream. Then, Trident requires that all the output fields of the new stream be named, since the input streams could have overlapping field names. The tuples emitted from the join will contain:
+これは、それぞれのストリームの結合フィールドとして"key"と"x"を使用してstream1とstream2を結合します。次に、Tridentは、入力ストリームが重複するフィールド名を持つ可能性があるため、新しいストリームのすべての出力フィールドに名前を付ける必要があります。joinからemitされるタプルには、次のものが含まれます:
 
-1. First, the list of join fields. In this case, "key" corresponds to "key" from stream1 and "x" from stream2.
-2. Next, a list of all non-join fields from all streams, in order of how the streams were passed to the join method. In this case, "a" and "b" correspond to "val1" and "val2" from stream1, and "c" corresponds to "val1" from stream2.
+1. まず、結合フィールドのリスト。この場合、"key"はstream1の"key"とstream2の"x"に対応しています。
+2. 次に、すべてのストリームからの非結合フィールドのリスト(ストリームが結合メソッドにどのように渡されたかの順になる)。この場合、"a"と"b"はstream1の"val1" と"val2"に対応し、"c"はstream2の"val1"に対応する。
 
-When a join happens between streams originating from different spouts, those spouts will be synchronized with how they emit batches. That is, a batch of processing will include tuples from each spout.
+異なるSpoutから発生したストリーム間で結合が発生すると、それらのSpoutはどのようにバッチのemitについて同期されます。つまり、処理のバッチには双方のSpoutからのタプルが含まれます。
 
-You might be wondering – how do you do something like a "windowed join", where tuples from one side of the join are joined against the last hour of tuples from the other side of the join.
+あなたは疑問に思うかもしれません - どうやって"windowed join"のようなことをしているか - 結合の片側からのタプルは、結合の反対側からのタプルの最後の1時間と結合されます。
 
-To do this, you would make use of partitionPersist and stateQuery. The last hour of tuples from one side of the join would be stored and rotated in a source of state, keyed by the join field. Then the stateQuery would do lookups by the join field to perform the "join".
+これを行うには、partitionPersistとstateQueryを使用します。結合の一方の側からのタプルの最後の1時間は、結合フィールドをキーとした状態のソースに格納され、ローテーションされます。次に、stateQueryは、"join"を実行するために結合フィールドによって検索を行います。
