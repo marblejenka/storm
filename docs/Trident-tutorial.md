@@ -4,16 +4,16 @@ layout: documentation
 documentation: true
 ---
 
-Trident is a high-level abstraction for doing realtime computing on top of Storm. It allows you to seamlessly intermix high throughput (millions of messages per second), stateful stream processing with low latency distributed querying. If you're familiar with high level batch processing tools like Pig or Cascading, the concepts of Trident will be very familiar – Trident has joins, aggregations, grouping, functions, and filters. In addition to these, Trident adds primitives for doing stateful, incremental processing on top of any database or persistence store. Trident has consistent, exactly-once semantics, so it is easy to reason about Trident topologies.
+Tridentは、Stormの上でリアルタイムコンピューティングを行うためのハイレベルの抽象化です。これにより、高スループット(数百万メッセージ/秒)と、低レイテンシの分散クエリによるステートフルなストリーム処理をシームレスに混在させることができます。PigやCascadingのような高水準のバッチ処理ツールに精通しているのなら、Tridentの概念は非常によく似てています -- Tridentには結合、集約、グループ化、関数、フィルタがあります。これらに加えて、Tridentはステートフルでインクリメンタルな処理を行うためのプリミティブをデータベースや永続ストアの上に追加しています。Tridentには一貫性のある、exactly-onceのセマンティクスがあるので、Tridentトポロジを使うのは合理的です。
 
 ## Illustrative example
 
-Let's look at an illustrative example of Trident. This example will do two things:
+Tridentの実例を見てみましょう。 この例は2つのことを行います:
 
-1. Compute streaming word count from an input stream of sentences
-2. Implement queries to get the sum of the counts for a list of words
+1. 文の入力ストリームからストリーミングワードカウントを計算する
+2. 単語リストから数の合計を取得するためのクエリを実装する
 
-For the purposes of illustration, this example will read an infinite stream of sentences from the following source:
+説明のため、この例では、以下のソースから文の無限ストリームを読み込みます:
 
 ```java
 FixedBatchSpout spout = new FixedBatchSpout(new Fields("sentence"), 3,
@@ -24,7 +24,7 @@ FixedBatchSpout spout = new FixedBatchSpout(new Fields("sentence"), 3,
 spout.setCycle(true);
 ```
 
-This spout cycles through that set of sentences over and over to produce the sentence stream. Here's the code to do the streaming word count part of the computation:
+このSpoutは、その文の集合を何度も繰り返して、文ストリームを生成しています。ストリーミングでワードカウントを実行するコードの一部を次に示します:
 
 ```java
 TridentTopology topology = new TridentTopology();        
@@ -36,17 +36,17 @@ TridentState wordCounts =
        .parallelismHint(6);
 ```
 
-Let's go through the code line by line. First a TridentTopology object is created, which exposes the interface for constructing Trident computations. TridentTopology has a method called newStream that creates a new stream of data in the topology reading from an input source. In this case, the input source is just the FixedBatchSpout defined from before. Input sources can also be queue brokers like Kestrel or Kafka. Trident keeps track of a small amount of state for each input source (metadata about what it has consumed) in Zookeeper, and the "spout1" string here specifies the node in Zookeeper where Trident should keep that metadata.
+コードを一行ずつ進んでみましょう。まずTridentTopologyオブジェクトが生成されています。TridentTopologyはTridentにおける計算を構築するためのインタフェースを公開しています。TridentTopologyにはnewStreamというメソッドがあり、これは入力ソースから読み取った新しいデータストリームをトポロジに生成します。上記の例では、入力ソースは前に定義していたFixedBatchSpoutだけです。入力ソースは、KestrelやKafkaのようなキューブローカーでもありえます。Tridentは、Zookeeperで各入力ソース(何をコンシュームしたかについてのメタデータ)の小さな状態を追跡します。ここで"spout1"という文字列は、Tridentがそのメタデータを保持するZookeeperのノードを指定しています。
 
-Trident processes the stream as small batches of tuples. For example, the incoming stream of sentences might be divided into batches like so:
+Tridentはストリームをタプルのsmall batchとして処理します。たとえば、文の入ってくるストリームは、次のようなバッチに分割されます:
 
 ![Batched stream](images/batched-stream.png)
 
-Generally the size of those small batches will be on the order of thousands or millions of tuples, depending on your incoming throughput.
+一般に、これらのsmall batchのサイズは、入力のスループットに応じて、数千から数百万のオーダーになります。
 
-Trident provides a fully fledged batch processing API to process those small batches. The API is very similar to what you see in high level abstractions for Hadoop like Pig or Cascading: you can do group by's, joins, aggregations, run functions, run filters, and so on. Of course, processing each small batch in isolation isn't that interesting, so Trident provides functions for doing aggregations across batches and persistently storing those aggregations – whether in memory, in Memcached, in Cassandra, or some other store. Finally, Trident has first-class functions for querying sources of realtime state. That state could be updated by Trident (like in this example), or it could be an independent source of state.
+Tridentは、これらのsmall batchを処理する完全なバッチ処理APIを提供します。APIは、PigやCascadingのようなHadoopの高レベル抽象化で見られるものと非常によく似ています: グループ化、結合、集計、関数の実行、フィルタの実行などが可能です。もちろん、各々のsmall batchを隔離して処理することは興味深いことではありません。したがって、Tridentはバッチ全体で集計を実行し、集計結果を永続的に格納する機能を提供します - メモリ、Memcached、Cassandra、または他のストアなど。最後に、Tridentはソースのリアルタイムな状態にクエリするためのfirst-classの機能を備えています。その状態は(この例のように)Tridentによって更新されるか、独立したソースの状態になる可能性があります。
 
-Back to the example, the spout emits a stream containing one field called "sentence". The next line of the topology definition applies the Split function to each tuple in the stream, taking the "sentence" field and splitting it into words. Each sentence tuple creates potentially many word tuples – for instance, the sentence "the cow jumped over the moon" creates six "word" tuples. Here's the definition of Split:
+例に戻ると、Spoutは"sentence"という1つのフィールドを含むストリームをemitします。次の行におけるトポロジ定義では、ストリーム内の各タプルに"sentence"フィールドを取り、単語に分割するSplit関数を適用しています。それぞれのsentenceタプルは、潜在的に多くの単語タプルを作成します – たとえば、sentence"the cow jumped over the moon"は、6つの"word"タプルを作成します。Splitの定義は次のとおりです:
 
 ```java
 public class Split extends BaseFunction {
@@ -59,22 +59,22 @@ public class Split extends BaseFunction {
 }
 ```
 
-As you can see, it's really simple. It simply grabs the sentence, splits it on whitespace, and emits a tuple for each word.
+見てわかるように、それは本当に簡単です。単に文をとってきて、それを空白で分割し、各単語のタプルをemitします。
 
-The rest of the topology computes word count and keeps the results persistently stored. First the stream is grouped by the "word" field. Then, each group is persistently aggregated using the Count aggregator. The persistentAggregate function knows how to store and update the results of the aggregation in a source of state. In this example, the word counts are kept in memory, but this can be trivially swapped to use Memcached, Cassandra, or any other persistent store. Swapping this topology to store counts in Memcached is as simple as replacing the persistentAggregate line with this (using [trident-memcached](https://github.com/nathanmarz/trident-memcached)), where the "serverLocations" is a list of host/ports for the Memcached cluster:
+トポロジの残りは、単語数を計算しその結果を永続的に保存します。最初に、ストリームは"word"フィールドによってグループ化されます。次に、各グループはCount aggregatorを使用して永続的に集約されます。persistentAggregate関数は、ソースの状態に集約の結果を格納して更新する方法を知っています。この例では、単語数はメモリに保持されますが、これはMemcached、Cassandra、またはその他の永続ストアを使用するよう簡単に交換できます。このトポロジを交換してMemcachedに数を格納するのは、persistentAggregate行をこれに置き換えるだけで簡単です([trident-memcached](https://github.com/nathanmarz/trident-memcached)を使用します)。ここで、"serverLocations"はMemcachedクラスタのホスト/ポートのリストになります:
 
 ```java
 .persistentAggregate(MemcachedState.transactional(serverLocations), new Count(), new Fields("count"))        
 MemcachedState.transactional()
 ```
 
-The values stored by persistentAggregate represents the aggregation of all batches ever emitted by the stream.
+persistentAggregateによって格納された値は、ストリームによってemitされたすべてのバッチの集約を表します。
 
-One of the cool things about Trident is that it has fully fault-tolerant, exactly-once processing semantics. This makes it easy to reason about your realtime processing. Trident persists state in a way so that if failures occur and retries are necessary, it won't perform multiple updates to the database for the same source data.
+Tridentのクールなことの1つは、完全にフォールトトレラントで、exactly-onceのセマンティクスがあることです。これにより、リアルタイム処理を合理的にしています。Tridentは、障害が発生して再試行が必要な場合、同じソースデータのデータベースに対して複数の更新を実行しないように状態を維持します。
 
-The persistentAggregate method transforms a Stream into a TridentState object. In this case the TridentState object represents all the word counts. We will use this TridentState object to implement the distributed query portion of the computation.
+persistentAggregateメソッドは、StreamをTridentStateオブジェクトに変換します。上記の例では、TridentStateオブジェクトはすべての単語数を表します。このTridentStateオブジェクトを使用して、計算の分散クエリ部分を実装します。
 
-The next part of the topology implements a low latency distributed query on the word counts. The query takes as input a whitespace separated list of words and return the sum of the counts for those words. These queries are executed just like normal RPC calls, except they are parallelized in the background. Here's an example of how you might invoke one of these queries:
+トポロジの次の部分は、単語カウントに関する低遅延の分散クエリを実装します。このクエリでは、空白で区切られた単語のリストが入力として取り込まれ、それらの単語の合計を返します。これらのクエリは、通常のRPC呼び出しと同様に実行されますが、バックグラウンドで並列化される点が異なります。これらのクエリの1つを呼び出す方法の例を次に示します:
 
 ```java
 DRPCClient client = new DRPCClient("drpc.server.location", 3772);
@@ -82,9 +82,9 @@ System.out.println(client.execute("words", "cat dog the man");
 // prints the JSON-encoded result, e.g.: "[[5078]]"
 ```
 
-As you can see, it looks just like a regular remote procedure call (RPC), except it's executing in parallel across a Storm cluster. The latency for small queries like this are typically around 10ms. More intense DRPC queries can take longer of course, although the latency largely depends on how many resources you have allocated for the computation.
+ご覧のとおり、通常のremote procedure call (RPC)のように見えますが、ストームクラスタ全体で並列に実行されている点が異なります。このような小規模なクエリの待ち時間は、通常10m程度です。レイテンシは、計算に割り当てられたリソースの数に大きく依存しますが、より激しいDRPCクエリには長時間かかる場合があります。
 
-The implementation of the distributed query portion of the topology looks like this:
+トポロジの分散クエリ部分の実装は、次のようになります:
 
 ```java
 topology.newDRPCStream("words")
@@ -95,26 +95,27 @@ topology.newDRPCStream("words")
        .aggregate(new Fields("count"), new Sum(), new Fields("sum"));
 ```
 
-The same TridentTopology object is used to create the DRPC stream, and the function is named "words". The function name corresponds to the function name given in the first argument of execute when using a DRPCClient.
+同じTridentTopologyオブジェクトを使用してDRPCストリームが作成され、その関数の名前は"words"になります。関数名は、DRPCClientを使用するときのexecuteの最初の引数に指定された関数名に対応します。
 
-Each DRPC request is treated as its own little batch processing job that takes as input a single tuple representing the request. The tuple contains one field called "args" that contains the argument provided by the client. In this case, the argument is a whitespace separated list of words.
+各DRPC要求は、要求を表す単一のタプルを入力としてとる、それ自身の小さなバッチ処理ジョブとして扱われます。タプルには、クライアントが提供する引数を含む "args"という1つのフィールドが含まれています。上記の例では、引数は空白で区切られた単語のリストです。
 
-First, the Split function is used to split the arguments for the request into its constituent words. The stream is grouped by "word", and the stateQuery operator is used to query the TridentState object that the first part of the topology generated. stateQuery takes in a source of state – in this case, the word counts computed by the other portion of the topology – and a function for querying that state. In this case, the MapGet function is invoked, which gets the count for each word. Since the DRPC stream is grouped the exact same way as the TridentState was (by the "word" field), each word query is routed to the exact partition of the TridentState object that manages updates for that word.
+まず、Split関数を使用して、リクエストである引数を構成語に分割します。ストリームは"word"でグループ化され、stateQuery演算子は、トポロジの最初の部分が生成したTridentStateオブジェクトにクエリするために使用されます。stateQueryは、状態のソース - この場合は、トポロジの他の部分によって計算される単語数 - と、その状態にクエリする関数を取り込みます。上記の例では、MapGet関数が呼び出され、各単語のカウントが取得されます。DRPCストリームはTridentStateと全く同じ方法で("word"フィールドによって)グループ化されているため、各単語のクエリは、その単語の更新を管理するTridentStateオブジェクトの正確なパーティションにルーティングされます。
 
-Next, words that didn't have a count are filtered out via the FilterNull filter and the counts are summed using the Sum aggregator to get the result. Then, Trident automatically sends the result back to the waiting client.
+次に、カウントを持たない単語はFilterNullフィルタでフィルタリングされ、Sum aggregatorを使用してカウントが合計され、結果が得られます。その後、Tridentは自動的に結果を待機中のクライアントに返します。
 
-Trident is intelligent about how it executes a topology to maximize performance. There's two interesting things happening automatically in this topology:
+Tridentは、トポロジをどのように実行してパフォーマンスを最大化するかについて賢いです。このトポロジでは、2つの面白いことが自動的に起こります:
 
-1. Operations that read from or write to state (like persistentAggregate and stateQuery) automatically batch operations to that state. So if there's 20 updates that need to be made to the database for the current batch of processing, rather than do 20 read requests and 20 writes requests to the database, Trident will automatically batch up the reads and writes, doing only 1 read request and 1 write request (and in many cases, you can use caching in your State implementation to eliminate the read request). So you get the best of both words of convenience – being able to express your computation in terms of what should be done with each tuple – and performance.
-2. Trident aggregators are heavily optimized. Rather than transfer all tuples for a group to the same machine and then run the aggregator, Trident will do partial aggregations when possible before sending tuples over the network. For example, the Count aggregator computes the count on each partition, sends the partial count over the network, and then sums together all the partial counts to get the total count. This technique is similar to the use of combiners in MapReduce.
+1. 状態を読み書きする(persistentAggregateやstateQueryのような)操作は、その状態対する操作を自動的にバッチにします。
+したがって、バッチ処理でデータベースに20回の更新が必要な場合、20回の読み取り要求と20回の書き込み要求をデータベースに行うのではなく、1つの読み込みと1つの書き込み要求として、読み取りと書き込みを自動的に一括して行います(さらに、多くの場合、State実装のキャッシュを使用して読み取り要求を排除できます)。つまり、利便性 - 各タプルで何をすべきかという観点から計算を表現することができる - と、パフォーマンスの両面における最良解を得ることができます。
+2. Tridentのaggregatorは大幅に最適化されています。グループのすべてのタプルを同じマシンに転送してからaggregatorを実行するのではなく、Tridentはネットワーク上でタプルを送信する前に、可能な限り部分集計を行います。たとえば、Count aggregatorは各パーティションのカウントを計算し、ネットワーク越しに部分的なカウントを送信し、次に合計カウントを得るためにすべての部分カウントを合計します。この手法は、MapReduceでのcombinerに似ています。
 
-Let's look at another example of Trident.
+Tridentの別の例を見てみましょう。
 
 ## Reach
 
-The next example is a pure DRPC topology that computes the reach of a URL on demand. Reach is the number of unique people exposed to a URL on Twitter. To compute reach, you need to fetch all the people who ever tweeted a URL, fetch all the followers of all those people, unique that set of followers, and that count that uniqued set. Computing reach is too intense for a single machine – it can require thousands of database calls and tens of millions of tuples. With Storm and Trident, you can parallelize the computation of each step across a cluster.
+次の例は、オンデマンドにURLのReachを計算する純粋なDRPCトポロジです。 Reachは、Twitterにおいて、特定のURLが提示されたユニークユーザーの数です。Reachを計算するには、特定のURLをツイートしたすべての人たちを取得し、その人たちすべてのフォロワーをフェッチし、そのフォロワーの集合を一意にして、その一意な集合の数を数える必要があります。1台のマシンでは手間がかかりすぎます - 何千ものデータベース呼び出しと数千万のタプルが必要になることがあります。StormとTridentを使用すると、クラスタ全体で各ステップの計算を並列化できます。
 
-This topology will read from two sources of state. One database maps URLs to a list of people who tweeted that URL. The other database maps a person to a list of followers for that person. The topology definition looks like this:
+このトポロジは、2つの状態のソースを読み取ります。1つのデータベースは、URLをそのURLをツイートした人のリスト対応付けします。もう1つのデータベースは、特定の人とそのフォロワーのリストを対応付けします。トポロジの定義は次のようになります:
 
 ```java
 TridentState urlToTweeters =
@@ -135,13 +136,13 @@ topology.newDRPCStream("reach")
        .aggregate(new Count(), new Fields("reach"));
 ```
 
-The topology creates TridentState objects representing each external database using the newStaticState method. These can then be queried in the topology. Like all sources of state, queries to these databases will be automatically batched for maximum efficiency.
+トポロジは、newStaticStateメソッドを使用して、各外部データベースを表すTridentStateオブジェクトを作成します。トポロジではこれらにクエリすることができます。すべての状態のソースと同様に、これらのデータベースへのクエリは、効率を最大化するために自動的にバッチ処理されます。
 
-The topology definition is straightforward – it's just a simple batch processing job. First, the urlToTweeters database is queried to get the list of people who tweeted the URL for this request. That returns a list, so the ExpandList function is invoked to create a tuple for each tweeter.
+トポロジの定義は簡単です - 単純なバッチ処理の仕事です。まず、urlToTweetersデータベースにこのリクエストにおけるURLをツイートした人のリストを取得するように問い合わせます。これはリストを返すので、各tweeterのタプルを作成するためにExpandList関数が呼び出されます。
 
-Next, the followers for each tweeter must be fetched. It's important that this step be parallelized, so shuffle is invoked to evenly distribute the tweeters among all workers for the topology. Then, the followers database is queried to get the list of followers for each tweeter. You can see that this portion of the topology is given a large parallelism since this is the most intense portion of the computation.
+次に、各tweeterのフォロワーをフェッチする必要があります。このステップを並列化することが重要です。シャッフルを実行すると、トポロジのすべてのワーカーにtweeterを均等に分散させることができます。そして、フォロワーデータベースに対して各ツイーターのフォロワーのリストを取得するためにクエリします。トポロジのこの部分は、これが計算の中で最も激しい部分であるため、大きな並列性が与えられていることがわかります。
 
-Next, the set of followers is uniqued and counted. This is done in two steps. First a "group by" is done on the batch by "follower", running the "One" aggregator on each group. The "One" aggregator simply emits a single tuple containing the number one for each group. Then, the ones are summed together to get the unique count of the followers set. Here's the definition of the "One" aggregator:
+そして、フォロワーの集合を一意にしたものをカウントします。これは2つのステップで行われます。最初に、"group by"は"follower"でバッチにされ、各グループで"One"　aggregatorが実行されます。 "One" aggregatorは、各グループについて数字の1を含む単一のタプルを単純にemitします。次に、1が合計されて、フォロワーの集合に対する一意なカウントを取得します。"One" aggregatorの定義は次のとおりです:
 
 ```java
 public class One implements CombinerAggregator<Integer> {
@@ -159,21 +160,21 @@ public class One implements CombinerAggregator<Integer> {
 }
 ```
 
-This is a "combiner aggregator", which knows how to do partial aggregations before transferring tuples over the network to maximize efficiency. Sum is also defined as a combiner aggregator, so the global sum done at the end of the topology will be very efficient.
+これは、タプルをネットワーク上で転送して効率を最大化する前に、部分集約を行う方法を知っている"combiner aggregator"です。Sumはcombiner aggregatorとしても定義されているため、トポロジの最後に実行されるグローバルな合計値の計算は非常に効率的です。
 
-Let's now look at Trident in more detail.
+Tridentをもっと詳しく見てみましょう。
 
 ## Fields and tuples
 
-The Trident data model is the TridentTuple which is a named list of values. During a topology, tuples are incrementally built up through a sequence of operations. Operations generally take in a set of input fields and emit a set of "function fields". The input fields are used to select a subset of the tuple as input to the operation, while the "function fields" name the fields the operation emits.
+Tridentにおけるデータモデルは、値の名前付きリストであるTridentTupleです。トポロジの間に、タプルは一連のオペレーションを通じて段階的に構築されます。オペレーションは、通常、入力フィールドの集合を取り込み、一連の"function field"をemitします。入力フィールドは、操作の入力としてタプルの部分集合を選択するために使用され、"function field"は、オペレーションがemitするフィールドの名前を指定します。
 
-Consider this example. Suppose you have a stream called "stream" that contains the fields "x", "y", and "z". To run a filter MyFilter that takes in "y" as input, you would say:
+以下の例について考えてみましょう。フィールド"x", "y", "z"を含む"stream"というストリームがあるとします。"y"を入力として取り込むフィルタMyFilterを実行するには、次のようにします:
 
 ```java
 stream.each(new Fields("y"), new MyFilter())
 ```
 
-Suppose the implementation of MyFilter is this:
+MyFilterの実装が次のようになっているとします:
 
 ```java
 public class MyFilter extends BaseFilter {
@@ -183,9 +184,9 @@ public class MyFilter extends BaseFilter {
 }
 ```
 
-This will keep all tuples whose "y" field is less than 10. The TridentTuple given as input to MyFilter will only contain the "y" field. Note that Trident is able to project a subset of a tuple extremely efficiently when selecting the input fields: the projection is essentially free.
+これは、"y"フィールドが10より小さいすべてのタプルを保持します。MyFilterへの入力として与えられるTridentTupleは、"y"フィールドのみを含みます。Tridentは、入力フィールドを選択するときにタプルの部分集合を非常に効率的に射影することができます: 射影は本質的にコストがかかりません。
 
-Let's now look at how "function fields" work. Suppose you had this function:
+"function field"の仕組みを見てみましょう。あなたがこの機能を持っていたとしましょう:
 
 ```java
 public class AddAndMultiply extends BaseFunction {
@@ -197,58 +198,59 @@ public class AddAndMultiply extends BaseFunction {
 }
 ```
 
-This function takes two numbers as input and emits two new values: the addition of the numbers and the multiplication of the numbers. Suppose you had a stream with the fields "x", "y", and "z". You would use this function like this:
+この関数は2つの数値を入力として取り、2つの新しい値をemitします: 数値の加算と数値の乗算を行います。フィールド"x", "y", "z"を持つストリームがあるとします。次のようにこの関数を使えます：
 
 ```java
 stream.each(new Fields("x", "y"), new AddAndMultiply(), new Fields("added", "multiplied"));
 ```
 
-The output of functions is additive: the fields are added to the input tuple. So the output of this each call would contain tuples with the five fields "x", "y", "z", "added", and "multiplied". "added" corresponds to the first value emitted by AddAndMultiply, while "multiplied" corresponds to the second value.
+関数の出力は加法的です: フィールドは入力タプルに追加されます。したがって、この各呼び出しの出力となるタプルには、"x", "y", "z", "added"および"multiplied"の5つのフィールドが含まれます。"added"はAddAndMultiplyがemitする最初の値に対応し、"multiplied"は第2の値に対応しています。
 
-With aggregators, on the other hand, the function fields replace the input tuples. So if you had a stream containing the fields "val1" and "val2", and you did this:
+一方、aggregatorの場合、function fieldは入力タプルを置き換えます。したがって、フィールド"val1"と"val2"を含むストリームがあり、以下のように行ったとします:
 
 ```java
 stream.aggregate(new Fields("val2"), new Sum(), new Fields("sum"))
 ```
 
-The output stream would only contain a single tuple with a single field called "sum", representing the sum of all "val2" fields in that batch.
+出力ストリームには、そのバッチ内のすべての"val2"フィールドの合計を表す"sum"という単一フィールドの単一タプルのみが含まれます。
 
-With grouped streams, the output will contain the grouping fields followed by the fields emitted by the aggregator. For example:
+グループ化されたストリームでは、出力にはグループ化フィールドが続き、その後にaggregatorがemitするフィールドが含まれます。例えば:
 
 ```java
 stream.groupBy(new Fields("val1"))
      .aggregate(new Fields("val2"), new Sum(), new Fields("sum"))
 ```
 
-In this example, the output will contain the fields "val1" and "sum".
+この例では、出力には"val1"と"sum"というフィールドが含まれます。
 
 ## State
 
-A key problem to solve with realtime computation is how to manage state so that updates are idempotent in the face of failures and retries. It's impossible to eliminate failures, so when a node dies or something else goes wrong, batches need to be retried. The question is – how do you do state updates (whether external databases or state internal to the topology) so that it's like each message was only processed only once?
+リアルタイム計算で解決すべき重要な問題は、失敗や再試行の際に更新が冪等であるように状態を管理する方法です。障害を取り除くことは不可能です。したがって、ノードが死んだり、何かがうまくいかないときは、バッチを再試行する必要があります。問題は - 各メッセージが一度だけ処理されるように、 どのようにして状態の更新(外部データベースかトポロジ内部かどうかにかかわらず)を行うかです。
 
-This is a tricky problem, and can be illustrated with the following example. Suppose that you're doing a count aggregation of your stream and want to store the running count in a database. If you store only the count in the database and it's time to apply a state update for a batch, there's no way to know if you applied that state update before. The batch could have been attempted before, succeeded in updating the database, and then failed at a later step. Or the batch could have been attempted before and failed to update the database. You just don't know.
+これは難しい問題であり、次の例で説明することができます。ストリームの集計を行い、累積カウントをデータベースに格納したいとします。データベースにカウントだけを保存していると、バッチの状態更新を適用する際に、以前にその状態更新を適用したかどうかを知る方法がありません。バッチは以前に実行が試みられた可能性があり、データベースの更新に成功した後、後のステップで失敗した可能性があります。または、バッチは以前に実行が試みられた可能性があり、データベースの更新に失敗した可能性があります。これらについて知る術はありません。
 
-Trident solves this problem by doing two things:
+トライデントは、次の2つのことを行うことでこの問題を解決します:
 
-1. Each batch is given a unique id called the "transaction id". If a batch is retried it will have the exact same transaction id.
-2. State updates are ordered among batches. That is, the state updates for batch 3 won't be applied until the state updates for batch 2 have succeeded.
+1. 各バッチには、"transaction id"と呼ばれる一意のIDが与えられます。バッチがリトライされる場合、バッチは全く同じトランザクションIDを持ちます。
+2. 状態更新は、バッチ間で順序付けされます。つまり、バッチ3の状態更新は、バッチ2の状態更新が成功するまで適用されません。
 
-With these two primitives, you can achieve exactly-once semantics with your state updates. Rather than store just the count in the database, what you can do instead is store the transaction id with the count in the database as an atomic value. Then, when updating the count, you can just compare the transaction id in the database with the transaction id for the current batch. If they're the same, you skip the update – because of the strong ordering, you know for sure that the value in the database incorporates the current batch. If they're different, you increment the count.
+これらの2つのプリミティブを使用すると、状態更新でexactly-onceのセマンティクスを実現できます。カウントをデータベースに格納する代わりに、トランザクションIDとカウントをアトミックな値としてデータベースに格納します。そうしておけば、カウントを更新するときに、データベースのトランザクションIDと現在のバッチのトランザクションIDを比較するだけで済みます。それらが同じであれば、更新をスキップします - 強い順序付けのため、データベースの値に現在のバッチが組み込まれていることがわかります。それらが異なる場合は、カウントを増やします。
 
-Of course, you don't have to do this logic manually in your topologies. This logic is wrapped by the State abstraction and done automatically. Nor is your State object required to implement the transaction id trick: if you don't want to pay the cost of storing the transaction id in the database, you don't have to. In that case the State will have at-least-once-processing semantics in the case of failures (which may be fine for your application). You can read more about how to implement a State and the various fault-tolerance tradeoffs possible [in this doc](/documentation/Trident-state.html).
+もちろん、トポロジでこのロジックを手動で行う必要はありません。このロジックはState抽象化によってラップされ、自動的に行われます。
+Stateオブジェクトでは、トランザクションIDのトリックを実装する必要もありません: データベースにトランザクションIDを格納するコストを支払いたくない場合は、そうする必要はありません。その場合、状態は、障害が発生するとat-least-once-processingのセマンティクスになります(アプリケーションがそれで問題なければ)。状態の実装方法とさまざまなフォールトトレランスのトレードオフについては、[このドキュメント](/documentation/Trident-state.html)を参照してください。
 
-A State is allowed to use whatever strategy it wants to store state. So it could store state in an external database or it could keep the state in-memory but backed by HDFS (like how HBase works). State's are not required to hold onto state forever. For example, you could have an in-memory State implementation that only keeps the last X hours of data available and drops anything older. Take a look at the implementation of the [Memcached integration](https://github.com/nathanmarz/trident-memcached/blob/master/src/jvm/trident/memcached/MemcachedState.java) for an example State implementation.
+Stateは、状態を保管するどんなstrategyでも使用することができます。したがって、外部データベースに状態を格納することも、状態をメモリ内に保持してHDFSに書き出すこともできます(HBaseの仕組みに近いもの)。Stateは永遠に状態を保持する必要はありません。たとえば、最後のX時間のデータを使用可能にし、古いものを削除するメモリ内のState実装もありえます。Stateの実装例については、[Memcached integration](https://github.com/nathanmarz/trident-memcached/blob/master/src/jvm/trident/memcached/MemcachedState.java)を見てください。
 
 ## Execution of Trident topologies
 
-Trident topologies compile down into as efficient of a Storm topology as possible. Tuples are only sent over the network when a repartitioning of the data is required, such as if you do a groupBy or a shuffle. So if you had this Trident topology:
+Tridentトポロジは、可能な限り効率的なStormトポロジとしてコンパイルされます。タプルは、groupByやシャッフルを行う場合など、データの再分割が必要な場合にのみネットワーク経由で送信されます。したがって、以下のTridentトポロジについて:
 
 ![Compiling Trident to Storm 1](images/trident-to-storm1.png)
 
-It would compile into Storm spouts/bolts like this:
+以下のようなStormのSpout/Boltにコンパイルされます:
 
 ![Compiling Trident to Storm 2](images/trident-to-storm2.png)
 
 ## Conclusion
 
-Trident makes realtime computation elegant. You've seen how high throughput stream processing, state manipulation, and low-latency querying can be seamlessly intermixed via Trident's API. Trident lets you express your realtime computations in a natural way while still getting maximal performance.
+Tridentは、リアルタイムの計算をエレガントにします。TridentのAPIを使用して、ハイスループットのストリーム処理、状態操作、低レイテンシのクエリをシームレスに混在させることができました。Tridentでは、パフォーマンスを最大限に引き出しながら、自然な方法でリアルタイムの計算を表現できます。
