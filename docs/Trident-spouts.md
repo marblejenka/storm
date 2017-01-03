@@ -5,40 +5,40 @@ documentation: true
 ---
 # Trident spouts
 
-Like in the vanilla Storm API, spouts are the source of streams in a Trident topology. On top of the vanilla Storm spouts, Trident exposes additional APIs for more sophisticated spouts.
+通常のStorm APIのように、SpoutはTridentトポロジのストリームのソースです。通常のStormのSpoutの上に、Tridentはより洗練されたSpoutのための追加のAPIを公開します。
 
-There is an inextricable link between how you source your data streams and how you update state (e.g. databases) based on those data streams. See [Trident state doc](Trident-state.html) for an explanation of this – understanding this link is imperative for understanding the spout options available.
+データストリームのソースと、それらのデータストリームに基づいて状態(データベースなど)を更新する方法との間には複雑な関係があります。この説明については、[Trident state doc](Trident-state.html)を参照してください - 利用可能なSpoutのオプションを理解するには、この関係性を理解することが不可欠です。
 
-Regular Storm spouts will be non-transactional spouts in a Trident topology. To use a regular Storm IRichSpout, create the stream like this in a TridentTopology:
+通常のStormのSpoutはTridentトポロジではnon-transactional spoutです。通常のStormのIRichSpoutを使用するには、TridentTopologyで次のようなストリームを作成します:
 
 ```java
 TridentTopology topology = new TridentTopology();
 topology.newStream("myspoutid", new MyRichSpout());
 ```
 
-All spouts in a Trident topology are required to be given a unique identifier for the stream – this identifier must be unique across all topologies run on the cluster. Trident will use this identifier to store metadata about what the spout has consumed in Zookeeper, including the txid and any metadata associated with the spout.
+TridentトポロジのすべてのSpoutには、ストリームの一意の識別子が必要です - この識別子は、クラスタで実行されるすべてのトポロジで一意でなければなりません。 Tridentは、この識別子を使用して、SpoutがZookeeperで消費したことに関するメタデータ(txidとSpoutに関連付けられているメタデータなど)を格納します。
 
-You can configure the Zookeeper storage of spout metadata via the following configuration options:
+SpoutメタデータのZookeeperストレージを設定するには、次の設定オプションを使用できます:
 
-1. `transactional.zookeeper.servers`: A list of Zookeeper hostnames 
-2. `transactional.zookeeper.port`: The port of the Zookeeper cluster
-3. `transactional.zookeeper.root`: The root dir in Zookeeper where metadata is stored. Metadata will be stored at the path <root path>/<spout id>
+1. `transactional.zookeeper.servers`: Zookeeperのホスト名のリスト
+2. `transactional.zookeeper.port`: Zookeeperクラスターのポート
+3. `transactional.zookeeper.root`: Zookeeperのルートディレクトリで、メタデータが格納されます。メタデータは<root path>/<spout id>のパスに格納されます
 
 ## Pipelining
 
-By default, Trident processes a single batch at a time, waiting for the batch to succeed or fail before trying another batch. You can get significantly higher throughput – and lower latency of processing of each batch – by pipelining the batches. You configure the maximum amount of batches to be processed simultaneously with the "topology.max.spout.pending" property. 
+デフォルトでは、Tridentは一度に1つのバッチを処理し、別のバッチを試す前にバッチの成功または失敗を待ちます。バッチをパイプライン化することで、スループットが大幅に向上し、各バッチの処理待ち時間が短縮されます。"topology.max.spout.pending"プロパティを使用して同時に処理するバッチの最大量を設定します。
 
-Even while processing multiple batches simultaneously, Trident will order any state updates taking place in the topology among batches. For example, suppose you're doing a global count aggregation into a database. The idea is that while you're updating the count in the database for batch 1, you can still be computing the partial counts for batches 2 through 10. Trident won't move on to the state updates for batch 2 until the state updates for batch 1 have succeeded. This is essential for achieving exactly-once processing semantics, as outline in [Trident state doc](Trident-state.html).
+複数のバッチを同時に処理している最中でも、Tridentはバッチ間でトポロジ内で発生する状態の更新を指示します。 たとえば、グローバル集計をデータベースに格納しているとします。バッチ1のデータベースのカウントを更新している間も、バッチ2〜10の部分カウントを計算することができます。Tridentは、バッチ1の状態更新に成功するまでバッチ2の状態更新に移行しません。これは、exactly-onceの処理セマンティクスを達成するために不可欠で、概要は[Trident state doc](Trident-state.html)で読めます。
 
 ## Trident spout types
 
-Here are the following spout APIs available:
+以下に、使用可能なSpout APIがあります:
 
-1. [ITridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/ITridentSpout.java): The most general API that can support transactional or opaque transactional semantics. Generally you'll use one of the partitioned flavors of this API rather than this one directly.
-2. [IBatchSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IBatchSpout.java): A non-transactional spout that emits batches of tuples at a time
-3. [IPartitionedTridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IPartitionedTridentSpout.java): A transactional spout that reads from a partitioned data source (like a cluster of Kafka servers)
-4. [IOpaquePartitionedTridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IOpaquePartitionedTridentSpout.java): An opaque transactional spout that reads from a partitioned data source
+1. [ITridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/ITridentSpout.java): 最も一般的なAPIで、transactionalとopaque transactionalのセマンティクスをサポートします。一般的に、このAPIを直接使うのではなく、このAPIのパーティション化されたフレーバーを使用します。
+2. [IBatchSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IBatchSpout.java): 一度にタプルをまとめてemitするnon-transactional spout
+3. [IPartitionedTridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IPartitionedTridentSpout.java): パーティション化されたデータソース(Kafkaサーバーのクラスタのようなもの)から読み取るtransactional spout
+4. [IOpaquePartitionedTridentSpout]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/spout/IOpaquePartitionedTridentSpout.java): パーティション化されたデータソースから読み取るopaque transactional spout
 
-And, like mentioned in the beginning of this tutorial, you can use regular IRichSpout's as well.
+また、このチュートリアルの冒頭で述べたように、通常のIRichSpoutも使用できます。
  
 
