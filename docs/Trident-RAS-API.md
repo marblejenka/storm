@@ -6,13 +6,13 @@ documentation: true
 
 ## Trident RAS API
 
-The Trident RAS (Resource Aware Scheduler) API provides a mechanism to allow users to specify the resource consumption of a Trident topology. The API looks exactly like the base RAS API, only it is called on Trident Streams instead of Bolts and Spouts.
+Trident RAS(Resource Aware Scheduler)APIは、ユーザーがTridentトポロジのリソース消費量を指定できるようにするメカニズムを提供します。APIはRAS APIとまったく同じように見えますが、BoltとSpoutの代わりにTrident Streamsで呼び出される点のみが異なります。
 
-In order to avoid duplication and inconsistency in documentation, the purpose and effects of resource setting are not described here, but are instead found in the [Resource Aware Scheduler Overview](Resource_Aware_Scheduler_overview.html)
+ドキュメントの重複や矛盾を避けるため、リソース設定の目的と効果についてはここでは説明しませんが、[Resource Aware Scheduler Overview](Resource_Aware_Scheduler_overview.html)に記載されています。
 
 ### Use
 
-First, an example:
+まずは例から:
 
 ```java
     TridentTopology topo = new TridentTopology();
@@ -35,18 +35,19 @@ First, an example:
             .setMemoryLoad(2048);
 ```
 
-Resources can be set for each operation (except for grouping, shuffling, partitioning).
-Operations that are combined by Trident into single Bolts will have their resources summed.
+リソースは、オペレーションごとに設定できます(グループ化、シャッフル、パーティション分割を除く)。
+Tridentが単一のボルトに統合したオペレーションは、そのリソースを合計します。
 
-Every Bolt is given **at least** the default resources, regardless of user settings.
+ユーザー設定にかかわらず、すべてのBoltには**少なくとも**デフォルトのリソースが与えられます。
 
+上記の場合、私たちは
 In the above case, we end up with
 
 
-- a spout and spout coordinator with a CPU load of 20% each, and a memory load of 512MiB on-heap and 256MiB off-heap.
-- a bolt with 60% cpu load (10% + 50%) and a memory load of 1536MiB (1024 + 512) on-heap from the combined `Split` and `BangAdder`
-- a bolt with 100% cpu load and a memory load of 2048MiB on-heap, with default value for off-heap.
+- それぞれ20％のCPUロードと、512MiBのオン・ヒープと256MiBのオフ・ヒープのメモリロードとなるSpoutとSpout Coordinator
+- SplitとBangAdderを組み合わせて60％のCPUロード(10％ + 50％)と1536MiB(1024 + 512)のメモリロードとなるBolt
+- 100％CPUロードと2048MiBオン・ヒープのメモリロードとなるBoltで、オフ・ヒープについてはデフォルト値。
 
-The API can be called as many times as is desired.
-It may be called after every operation, after some of the operations, or used in the same manner as `parallelismHint()` to set resources for a whole section.
-Resource declarations have the same *boundaries* as parallelism hints. They don't cross any groupings, shufflings, or any other kind of repartitioning.
+APIは必要な回数だけ呼び出すことができます。
+すべてのオペレーションの後で呼び出されたり、いくつかのオペレーションの後に呼び出される、parallelismHint()と同じ方法で使用されセクション全体のリソースを設定するなどがありえます。
+リソース宣言は、並列性ヒントと同じ*境界*を持ちます。グループ化、シャッフル、またはその他の種類のパーティション分割をまたぎません。
