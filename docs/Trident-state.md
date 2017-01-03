@@ -4,43 +4,43 @@ layout: documentation
 ---
 
 
-Trident has first-class abstractions for reading from and writing to stateful sources. The state can either be internal to the topology – e.g., kept in-memory and backed by HDFS – or externally stored in a database like Memcached or Cassandra. There's no difference in the Trident API for either case.
+Tridentには、ステートフルなソースからの読み書き用のfirst-classの抽象があります。状態は、メモリ内に保持されつつHDFSによってバックアップされるなど、トポロジの内部にあってもよく、MemcachedまたはCassandraのようなデータベースに外部的に格納されていても構いません。どちらの場合でもTrident APIに違いはありません。
 
-Trident manages state in a fault-tolerant way so that state updates are idempotent in the face of retries and failures. This lets you reason about Trident topologies as if each message were processed exactly-once.
+Tridentは、フォールトトレラントな方法で状態を管理し、再試行や障害が発生しても状態の更新が冪等であるようにします。これにより、各メッセージがどのようにexactly-onceに処理されるか、Tridentのトポロジについて推論することができます。
 
-There's various levels of fault-tolerance possible when doing state updates. Before getting to those, let's look at an example that illustrates the tricks necessary to achieve exactly-once semantics. Suppose that you're doing a count aggregation of your stream and want to store the running count in a database. Now suppose you store in the database a single value representing the count, and every time you process a new tuple you increment the count.
+状態の更新は、さまざまなレベルのフォールトトレランスで行うことができます。それらについて考える前に、exactly-onceセマンティクスを達成するために必要な技を示す例を見てみましょう。ストリームの集計を行い、累積カウントをデータベースに格納したいとします。今は、カウントを表す単一の値をデータベースに格納し、新しいタプルを処理するたびにカウントを増やすとします。
 
-When failures occur, tuples will be replayed. This brings up a problem when doing state updates (or anything with side effects) – you have no idea if you've ever successfully updated the state based on this tuple before. Perhaps you never processed the tuple before, in which case you should increment the count. Perhaps you've processed the tuple and successfully incremented the count, but the tuple failed processing in another step. In this case, you should not increment the count. Or perhaps you saw the tuple before but got an error when updating the database. In this case, you *should* update the database.
+障害が発生すると、タプルがリプレイされます。これは、状態の更新(または副作用があるもの)を行うときに問題を引き起こします - 以前にそのタプルに基づいて状態を正常に更新したことがあるかどうかわかりません。おそらく、あなたは前にそのタプルを処理したことがなかったはずで、その場合、カウントをインクリメントするべきです。おそらく、あなたはタプルを処理してカウントを増やすのに成功しましたが、タプルは別のステップで処理に失敗しました。この場合、カウントをインクリメントするべきではありません。または、おそらく前にそのタプルを見たことがありますが、データベースを更新するときにエラーが発生しました。この場合、データベースを更新する*べき*です。
 
-By just storing the count in the database, you have no idea whether or not this tuple has been processed before. So you need more information in order to make the right decision. Trident provides the following semantics which are sufficient for achieving exactly-once processing semantics:
+このように、カウントをデータベースに格納するだけでは、このタプルが以前に処理されたかどうかはわかりません。正しい判断を下すためには、より多くの情報が必要です。 Tridentは、exactly-onceの処理セマンティクスを達成するのに十分な以下のセマンティクスを提供します:
 
-1. Tuples are processed as small batches (see [the tutorial](Trident-tutorial.html))
-2. Each batch of tuples is given a unique id called the "transaction id" (txid). If the batch is replayed, it is given the exact same txid.
-3. State updates are ordered among batches. That is, the state updates for batch 3 won't be applied until the state updates for batch 2 have succeeded.
+1. タプルは小さなバッチとして処理されます([チュートリアル](Trident-tutorial.html)を参照)
+2. タプルの各バッチには、"transaction id" (txid)と呼ばれる一意のIDが与えられます。バッチが再生される場合、正確に同じtxidが与えられます。
+3. 状態更新は、バッチ間で順序付けされます。つまり、バッチ3の状態更新は、バッチ2の状態更新が成功するまで適用されません。
 
-With these primitives, your State implementation can detect whether or not the batch of tuples has been processed before and take the appropriate action to update the state in a consistent way. The action you take depends on the exact semantics provided by your input spouts as to what's in each batch. There's three kinds of spouts possible with respect to fault-tolerance: "non-transactional", "transactional", and "opaque transactional". Likewise, there's three kinds of state possible with respect to fault-tolerance: "non-transactional", "transactional", and "opaque transactional". Let's take a look at each spout type and see what kind of fault-tolerance you can achieve with each.
+これらのプリミティブを使用すると、状態の実装は、タプルのバッチが以前に処理されたかどうかを検出し、一貫した方法で状態を更新するための適切なアクションを実行できます。実行するアクションは、各バッチの内容について入力Spuutが提供する正確性のセマンティクスに依存します。フォールトトレランスに関するSpoutの種類は、"non-transactional", "transactional"と"opaque transactional"の3種類があります。同様に、フォールトトレランスに関する状態の種類は、"non-transactional", "transactional"と"opaque transactional"の3種類があります。それぞれのSpoutの種類を見て、どのような種類のフォールトトレランスでそれぞれを達成できるかを見てみましょう。
 
 ## Transactional spouts
 
-Remember, Trident processes tuples as small batches with each batch being given a unique transaction id. The properties of spouts vary according to the guarantees they can provide as to what's in each batch. A transactional spout has the following properties:
+Tridentはタプルを小さなバッチとして処理し、各バッチには一意のトランザクションIDが与えられることを思い出してください。Spoutの特性は、各バッチに含まれているものについて保証できることによって変わります。transactional spoutには、次の特性があります:
 
-1. Batches for a given txid are always the same. Replays of batches for a txid will exact same set of tuples as the first time that batch was emitted for that txid.
-2. There's no overlap between batches of tuples (tuples are in one batch or another, never multiple).
-3. Every tuple is in a batch (no tuples are skipped)
+1. 与えられたtxidのバッチは常に同じです。特定のtxidであるバッチのリプレイは、そのtxidに対してバッチが最初にemitされたときと同じ集合であるタプルを正確に扱います。
+2. バッチ間にタプルの重複はありません(タプルはあるバッチまたはそれとは別のバッチにあり、決して複数にはありません)。
+3. すべてのタプルはバッチに含まれます(スキップされるタプルはありません)
 
-This is a pretty easy type of spout to understand, the stream is divided into fixed batches that never change. storm-contrib has [an implementation of a transactional spout]({{page.git-tree-base}}/external/storm-kafka/src/jvm/org/apache/storm/kafka/trident/TransactionalTridentKafkaSpout.java) for Kafka.
+これは分かりやすいSpoutの種類です。ストリームは決して変化しない固定のバッチに分割されています。storm-contribにはKafkaの[transactional spoutの実装]({{page.git-tree-base}}/external/storm-kafka/src/jvm/org/apache/storm/kafka/trident/TransactionalTridentKafkaSpout.java)があります。
 
-You might be wondering – why wouldn't you just always use a transactional spout? They're simple and easy to understand. One reason you might not use one is because they're not necessarily very fault-tolerant. For example, the way TransactionalTridentKafkaSpout works is the batch for a txid will contain tuples from all the Kafka partitions for a topic. Once a batch has been emitted, any time that batch is re-emitted in the future the exact same set of tuples must be emitted to meet the semantics of transactional spouts. Now suppose a batch is emitted from TransactionalTridentKafkaSpout, the batch fails to process, and at the same time one of the Kafka nodes goes down. You're now incapable of replaying the same batch as you did before (since the node is down and some partitions for the topic are not unavailable), and processing will halt. 
+あなたは疑問に思うかもしれません - どうして常にtransactional spoutを使用しないのか？それは簡単で理解しやすいです。1つの理由は、必ずしもフォールトトレラントでなければならないなわけではないからです。たとえば、TransactionalTridentKafkaSpoutの仕組みは、特定のtxidのバッチには、あるトピックについてのすべてのKafkaのパーティションから来るタプルを含んでいることを前提としています。一度バッチがemitされると、バッチが将来において再度emitされるたびに、transactional spoutのセマンティクスを満たすために全く同じ集合のタプルをemitする必要があります。TransactionalTridentKafkaSpoutからバッチがemitされ、バッチに対する処理に失敗し、同時にKafkaのノードの1つがダウンしたとします。これで、以前と同じバッチをリプレイすることができなくなり(ノードがダウンしてトピックの一部のパーティションが使用できなくなったため)、処理が停止します。
 
-This is why "opaque transactional" spouts exist – they are fault-tolerant to losing source nodes while still allowing you to achieve exactly-once processing semantics. We'll cover those spouts in the next section though.
+これは、"opaque transactional"Spoutが存在する理由です - ソースとなるノードが失われてもフォールトトレラントでありながら、exactly-onceの処理セマンティクスを実現できます。我々は次のセクションでそれらのSpoutをカバーします。
 
-(One side note – once Kafka supports replication, it will be possible to have transactional spouts that are fault-tolerant to node failure, but that feature does not exist yet.)
+(注記 - Kafkaがレプリケーションをサポートすると、ノード障害に対してフォールトトレラントなtransactional spoutを持つことは可能ですが、その機能はまだ存在しません。)
 
-Before we get to "opaque transactional" spouts, let's look at how you would design a State implementation that has exactly-once semantics for transactional spouts. This State type is called a "transactional state" and takes advantage of the fact that any given txid is always associated with the exact same set of tuples.
+"opaque transactional"なspoutについて見る前に、transactional spoutに対してexactly-onceのセマンティクスを持つState実装をどのように設計するかを見てみましょう。このStateの種類は"transactional state"と呼ばれ、与えられたtxidが常に同じタプルの集合に関連付けられているという事実を利用します。
 
-Suppose your topology computes word count and you want to store the word counts in a key/value database. The key will be the word, and the value will contain the count. You've already seen that storing just the count as the value isn't sufficient to know whether you've processed a batch of tuples before. Instead, what you can do is store the transaction id with the count in the database as an atomic value. Then, when updating the count, you can just compare the transaction id in the database with the transaction id for the current batch. If they're the same, you skip the update – because of the strong ordering, you know for sure that the value in the database incorporates the current batch. If they're different, you increment the count. This logic works because the batch for a txid never changes, and Trident ensures that state updates are ordered among batches.
+トポロジが単語数を計算し、単語数をkey/valueデータベースに保存するとします。キーは単語になり、バリューにはカウントが含まれます。バリューに数だけを格納するだけでは、タプルのバッチを処理したかどうかを知るには不十分であることについて見てきました。代わりに、データベースにトランザクションIDとカウントをアトミックな値として格納することができます。その後、カウントを更新する際に、データベースのトランザクションIDと現在のバッチのトランザクションIDを比較すれば十分です。それらが同じであれば、更新をスキップします - 強い順序付けのため、データベースの値に現在のバッチの結果が含まれていることがわかります。それらが異なる場合は、カウントを増やします。このロジックは、txidのバッチは決して変更されないこと、また、Tridentが状態更新がバッチ間で順序付けされることを保証しているため成立します。
 
-Consider this example of why it works. Suppose you are processing txid 3 which consists of the following batch of tuples:
+なぜこの設計が機能するか例で考えてみましょう。次のタプルのバッチで構成されるtxid 3を処理しているとします:
 
 ```
 ["man"]
@@ -48,7 +48,7 @@ Consider this example of why it works. Suppose you are processing txid 3 which c
 ["dog"]
 ```
 
-Suppose the database currently holds the following key/value pairs:
+データベースが現在、次のキーと値のバリューのペアを保持しているとします:
 
 ```
 man => [count=3, txid=1]
@@ -56,7 +56,7 @@ dog => [count=4, txid=3]
 apple => [count=10, txid=2]
 ```
 
-The txid associated with "man" is txid 1. Since the current txid is 3, you know for sure that this batch of tuples is not represented in that count. So you can go ahead and increment the count by 2 and update the txid. On the other hand, the txid for "dog" is the same as the current txid. So you know for sure that the increment from the current batch is already represented in the database for the "dog" key. So you can skip the update. After completing updates, the database looks like this:
+"man"に関連付けられたtxidはtxid 1です。現在のtxidは3であるため、処理しようとしているバッチのタプルはカウントに含まれていないことがわかります。このため、処理を続けて、カウントを2つ増やしてtxidを更新することができます。一方、"dog"のtxidは現在のtxidと同じです。したがって、現在のバッチからのインクリメントがデータベース内で"dog"キー用に既に含まれていることがわかります。したがって、アップデートをスキップすることができます。更新が完了すると、データベースは次のようになります:
 
 ```
 man => [count=5, txid=3]
@@ -64,19 +64,19 @@ dog => [count=4, txid=3]
 apple => [count=10, txid=2]
 ```
 
-Let's now look at opaque transactional spouts and how to design states for that type of spout.
+では、opaque transactional spoutと、その種類のSpoutの状態を設計する方法を見てみましょう。
 
 ## Opaque transactional spouts
 
-As described before, an opaque transactional spout cannot guarantee that the batch of tuples for a txid remains constant. An opaque transactional spout has the following property:
+前に説明したように、opaque transactional spoutは、タプルのバッチに対するtxidが一定のままであることを保証することはできません。opaque transactional spoutには、次の特性があります:
 
-1. Every tuple is *successfully* processed in exactly one batch. However, it's possible for a tuple to fail to process in one batch and then succeed to process in a later batch.
+1. すべてのタプルは、必ず1つのバッチで*正常に*処理されます。しかし、タプルが1つのバッチで処理できず、その後、後のバッチで処理に成功する可能性があります。
 
-[OpaqueTridentKafkaSpout]({{page.git-tree-base}}/external/storm-kafka/src/jvm/org/apache/storm/kafka/trident/OpaqueTridentKafkaSpout.java) is a spout that has this property and is fault-tolerant to losing Kafka nodes. Whenever it's time for OpaqueTridentKafkaSpout to emit a batch, it emits tuples starting from where the last batch finished emitting. This ensures that no tuple is ever skipped or successfully processed by multiple batches.
+[OpaqueTridentKafkaSpout]({{page.git-tree-base}}/external/storm-kafka/src/jvm/org/apache/storm/kafka/trident/OpaqueTridentKafkaSpout.java)は、この特性を持ち、Kafkaのノードを失うことにフォールトトレラントなSpoutです。OpaqueTridentKafkaSpoutがバッチをemitするときはいつでも、最後のバッチがemitを完了したところからemitを開始します。これにより、タプルがスキップされたり、複数のバッチによって正常に処理されたりすることはありません。
 
-With opaque transactional spouts, it's no longer possible to use the trick of skipping state updates if the transaction id in the database is the same as the transaction id for the current batch. This is because the batch may have changed between state updates.
+opaque transactional spoutでは、データベース内のトランザクションIDが現在のバッチのトランザクションIDと同じであれば状態更新をスキップするトリックを使用することはもはや不可能です。これは、状態の更新の間にバッチが変更された可能性があるためです。
 
-What you can do is store more state in the database. Rather than store a value and transaction id in the database, you instead store a value, transaction id, and the previous value in the database. Let's again use the example of storing a count in the database. Suppose the partial count for your batch is "2" and it's time to apply a state update. Suppose the value in the database looks like this:
+あなたができることは、より多くの状態をデータベースに格納することです。値とトランザクションIDをデータベースに格納するのではなく、値、トランザクションID、および直前の値をデータベースに格納します。再度、データベースにカウントを格納する例を使用してみましょう。バッチの部分カウントが"2"であり、状態更新を適用するときだとします。データベースの値が次のようになっているとします:
 
 ```
 { value = 4,
@@ -85,7 +85,7 @@ What you can do is store more state in the database. Rather than store a value a
 }
 ```
 
-Suppose your current txid is 3, different than what's in the database. In this case, you set "prevValue" equal to "value", increment "value" by your partial count, and update the txid. The new database value will look like this:
+現在のtxidが3で、データベース内のtxidと異なるとします。この場合、"prevValue"を"value"に設定し、部分カウントだけ"value"を増やして、txidを更新します。 新しいデータベース値は次のようになります:
 
 ```
 { value = 6,
@@ -94,7 +94,7 @@ Suppose your current txid is 3, different than what's in the database. In this c
 }
 ```
 
-Now suppose your current txid is 2, equal to what's in the database. Now you know that the "value" in the database contains an update from a previous batch for your current txid, but that batch may have been different so you have to ignore it. What you do in this case is increment "prevValue" by your partial count to compute the new "value". You then set the value in the database to this:
+今度は、現在のtxidが2で、データベースの内容と同じであるとします。データベースの"value"には現在のバッチと同じtxidである前のバッチからの更新が含まれており、そのバッチは今回のバッチと異なる可能性があるので、以前のバッチによって適用された値を無視する必要があります。この場合、あなたの部分的なカウントによって "prevValue"をインクリメントして、新しい"value"を計算します。そして、データベースの値を次のように設定します:
 
 ```
 { value = 3,
@@ -103,25 +103,25 @@ Now suppose your current txid is 2, equal to what's in the database. Now you kno
 }
 ```
 
-This works because of the strong ordering of batches provided by Trident. Once Trident moves onto a new batch for state updates, it will never go back to a previous batch. And since opaque transactional spouts guarantee no overlap between batches – that each tuple is successfully processed by one batch – you can safely update based on the previous value.
+これは、Tridentによって提供されたバッチの強力な順序付けのために機能します。Tridentが状態更新のために新しいバッチに移動すると、それは決して前のバッチに戻ることはありません。また、opaque transactional spoutはバッチ間のオーバーラップがないことを保証しているので - 各タプルは1つのバッチで正常に処理されます - 前の値に基づいて安全に更新できます。
 
 ## Non-transactional spouts
 
-Non-transactional spouts don't provide any guarantees about what's in each batch. So it might have at-most-once processing, in which case tuples are not retried after failed batches. Or it might have at-least-once processing, where tuples can be processed successfully by multiple batches. There's no way to achieve exactly-once semantics for this kind of spout.
+Non-transactional spoutは、各バッチの内容を保証するものではありません。したがって、at-most-onceで処理することがあります。この場合、失敗したバッチの後にタプルは再試行されません。または、タプルが複数のバッチで正常に処理される、at-least-onceで処理が行われる可能性があります。この種類のSpoutには、exactly-onceセマンティクスを達成する方法はありません。
 
 ## Summary of spout and state types
 
-This diagram shows which combinations of spouts / states enable exactly-once messaging semantics:
+以下の図は、Spout/Stateのどの組み合わせがexactly-onceのメッセージングセマンティクスを可能にするかを示しています:
 
 ![Spouts vs States](images/spout-vs-state.png)
 
-Opaque transactional states have the strongest fault-tolerance, but this comes at the cost of needing to store the txid and two values in the database. Transactional states require less state in the database, but only work with transactional spouts. Finally, non-transactional states require the least state in the database but cannot achieve exactly-once semantics.
+Opaque transactional stateはフォールトトレランス性が最も強力ですが、これはtxidと2つの値をデータベースに格納するコストがかかります。Transactional statesでは、データベース内の状態は少なくて済みますが、transactional spoutでしか動作しません。最後に、non-transactional stateはデータベース内の状態についての要求は最小ですが、exactly-onceのセマンティクスは実現できません。
 
-The state and spout types you choose are a tradeoff between fault-tolerance and storage costs, and ultimately your application requirements will determine which combination is right for you.
+選択すべきStateとSpoutの種類は、フォールトトレランスとストレージコストのトレードオフです。究極的に、アプリケーションの要件によって、どの組み合わせが適切かが決まります。
 
 ## State APIs
 
-You've seen the intricacies of what it takes to achieve exactly-once semantics. The nice thing about Trident is that it internalizes all the fault-tolerance logic within the State – as a user you don't have to deal with comparing txids, storing multiple values in the database, or anything like that. You can write code like this:
+あなたは、exactly-onceのセマンティクスを達成するために必要なものの複雑さを見てきました。Tridentの素晴らしい点は、State内のすべてのフォールトトレランスロジックを内部化していることです - ユーザーは、txidの比較、データベース内への複数の値の格納などを扱う必要はありません。次のようなコードを書くことができます:
 
 ```java
 TridentTopology topology = new TridentTopology();        
@@ -133,9 +133,9 @@ TridentState wordCounts =
         .parallelismHint(6);
 ```
 
-All the logic necessary to manage opaque transactional state logic is internalized in the MemcachedState.opaque call. Additionally, updates are automatically batched to minimize roundtrips to the database.
+opaque transactional stateを管理するために必要なすべてのロジックは、MemcachedState.opaque呼び出しで内部化されています。さらに、データベースへのラウンドトリップを最小限に抑えるために、更新は自動的にバッチ処理されます。
 
-The base State interface just has two methods:
+基底となるStateインターフェイスには2つのメソッドしかありません:
 
 ```java
 public interface State {
@@ -144,9 +144,9 @@ public interface State {
 }
 ```
 
-You're told when a state update is beginning, when a state update is ending, and you're given the txid in each case. Trident assumes nothing about how your state works, what kind of methods there are to update it, and what kind of methods there are to read from it.
+状態の更新が開始されたときや、状態の更新が終了したときには、txidとともにあなたに通知されます。Tridentは、Stateの仕組み、それを更新する方法、状態の読み出しについてどんなメソッドがあるかについて、何も想定していません。
 
-Suppose you have a home-grown database that contains user location information and you want to be able to access it from Trident. Your State implementation would have methods for getting and setting user information:
+ユーザーの位置情報を含む自宅のデータベースがあり、それをTridentからアクセスできるようにしたいとします。Stateの実装には、ユーザー情報を取得して設定するメソッドがあります:
 
 ```java
 public class LocationDB implements State {
@@ -166,7 +166,7 @@ public class LocationDB implements State {
 }
 ```
 
-You then provide Trident a StateFactory that can create instances of your State object within Trident tasks. The StateFactory for your LocationDB might look something like this:
+その後、Tridentタスク内でStateのインスタンスを作成できるStateFactoryをTridentに提供します。LocationDBのStateFactoryは次のようになります:
 
 ```java
 public class LocationDBFactory implements StateFactory {
@@ -176,7 +176,7 @@ public class LocationDBFactory implements StateFactory {
 }
 ```
 
-Trident provides the QueryFunction interface for writing Trident operations that query a source of state, and the StateUpdater interface for writing Trident operations that update a source of state. For example, let's write an operation "QueryLocation" that queries the LocationDB for the locations of users. Let's start off with how you would use it in a topology. Let's say this topology consumes an input stream of userids:
+Tridentは、状態のソースにクエリするTrident操作を記述するQueryFunctionインターフェースと、状態のソースを更新するTrident操作を記述するためのStateUpdaterインターフェースを提供します。たとえば、LocationDBにユーザーの場所を照会する操作"QueryLocation"を作成します。トポロジでどのように使用するかについて説明しましょう。このトポロジが入力ストリームのユーザIDをコンシュームしているとします:
 
 ```java
 TridentTopology topology = new TridentTopology();
@@ -185,7 +185,7 @@ topology.newStream("myspout", spout)
         .stateQuery(locations, new Fields("userid"), new QueryLocation(), new Fields("location"))
 ```
 
-Now let's take a look at what the implementation of QueryLocation would look like:
+次に、QueryLocationの実装がどのようになるかを見てみましょう:
 
 ```java
 public class QueryLocation extends BaseQueryFunction<LocationDB, String> {
@@ -203,9 +203,9 @@ public class QueryLocation extends BaseQueryFunction<LocationDB, String> {
 }
 ```
 
-QueryFunction's execute in two steps. First, Trident collects a batch of reads together and passes them to batchRetrieve. In this case, batchRetrieve will receive multiple user ids. batchRetrieve is expected to return a list of results that's the same size as the list of input tuples. The first element of the result list corresponds to the result for the first input tuple, the second is the result for the second input tuple, and so on.
+QueryFunctionは2つのステップで実行されます。まず、Tridentは読み取りのバッチをまとめてbatchRetrieveに渡します。この場合、batchRetrieveは複数のユーザーIDを受け取ります。batchRetrieveは、入力タプルのリストと同じサイズの結果のリストを返すことが期待されます。結果リストの最初の要素は、最初の入力タプルの結果に対応し、2番目の要素は2番目の入力タプルの結果に対応し、以下同様です。
 
-You can see that this code doesn't take advantage of the batching that Trident does, since it just queries the LocationDB one at a time. So a better way to write the LocationDB would be like this:
+前のコードは、Tridentが一度に1つずつLocationDBを照会するだけなので、Tridentが行うバッチ処理を利用していないことがわかります。だから、LocationDBを書くより良い方法は次のようになります:
 
 ```java
 public class LocationDB implements State {
@@ -225,7 +225,7 @@ public class LocationDB implements State {
 }
 ```
 
-Then, you can write the QueryLocation function like this:
+そうすると、次のようにQueryLocation関数を記述できます:
 
 ```java
 public class QueryLocation extends BaseQueryFunction<LocationDB, String> {
@@ -243,9 +243,9 @@ public class QueryLocation extends BaseQueryFunction<LocationDB, String> {
 }
 ```
 
-This code will be much more efficient by reducing roundtrips to the database. 
+このコードは、データベースへのラウンドトリップを減らすことによって、はるかに効率的になります。
 
-To update state, you make use of the StateUpdater interface. Here's a StateUpdater that updates a LocationDB with new location information:
+状態を更新するには、StateUpdaterインタフェースを使用します。以下に新しい位置情報でLocationDBを更新するStateUpdaterがあります:
 
 ```java
 public class LocationUpdater extends BaseStateUpdater<LocationDB> {
@@ -261,7 +261,7 @@ public class LocationUpdater extends BaseStateUpdater<LocationDB> {
 }
 ```
 
-Here's how you would use this operation in a Trident topology:
+Tridentトトポロジでこの操作を使用する方法は次のとおりです:
 
 ```java
 TridentTopology topology = new TridentTopology();
@@ -270,15 +270,15 @@ TridentState locations =
         .partitionPersist(new LocationDBFactory(), new Fields("userid", "location"), new LocationUpdater())
 ```
 
-The partitionPersist operation updates a source of state. The StateUpdater receives the State and a batch of tuples with updates to that State. This code just grabs the userids and locations from the input tuples and does a bulk set into the State. 
+partitionPersist操作は、状態のソースを更新します。StateUpdaterはStateと、そのStateへの更新を伴うタプルのバッチを受け取ります。このコードは、入力タプルからユーザーIDとlocationを取得し、状態を一括して設定します。
 
-partitionPersist returns a TridentState object representing the location db being updated by the Trident topology. You could then use this state in stateQuery operations elsewhere in the topology. 
+partitionPersistは、Tridentのトポロジによって更新されるlocation dbを表すTridentStateオブジェクトを返します。この状態は、トポロジのどの場所でもstateQuery操作で使用できます。
 
-You can also see that StateUpdaters are given a TridentCollector. Tuples emitted to this collector go to the "new values stream". In this case, there's nothing interesting to emit to that stream, but if you were doing something like updating counts in a database, you could emit the updated counts to that stream. You can then get access to the new values stream for further processing via the TridentState#newValuesStream method.
+StateUpdatersにはTridentCollectorが与えられていることもわかります。このコレクターにemitされたタプルは、"new values stream"に移動します。この場合、そのストリームにemitするのは特に興味深いことでありませんが、データベースのカウントを更新する場合などは、更新されたカウントをそのストリームにemitすることができます。その後、TridentState#newValuesStreamメソッドを使用して、新しい値ストリームにアクセスしてさらに処理することができます。
 
 ## persistentAggregate
 
-Trident has another method for updating States called persistentAggregate. You've seen this used in the streaming word count example, shown again below:
+Tridentには、persistentAggregateという状態を更新する別の方法があります。これはストリーミングのワードカウントの例で使用されています:
 
 ```java
 TridentTopology topology = new TridentTopology();        
@@ -289,7 +289,7 @@ TridentState wordCounts =
         .persistentAggregate(new MemoryMapState.Factory(), new Count(), new Fields("count"))
 ```
 
-persistentAggregate is an additional abstraction built on top of partitionPersist that knows how to take a Trident aggregator and use it to apply updates to the source of state. In this case, since this is a grouped stream, Trident expects the state you provide to implement the "MapState" interface. The grouping fields will be the keys in the state, and the aggregation result will be the values in the state. The "MapState" interface looks like this:
+persistentAggregateは、Tridentのaggregatorを使用して状態のソースに更新を適用する方法を知っている、partitionPersistの上に構築された追加の抽象です。この場合、これはグループ化されたストリームなので、Tridentに渡されるstateが"MapState"インタフェースを実装していることが期待されます。グループ化フィールドは状態のキーになり、集計結果は状態のバリューになります。"MapState"インターフェースは次のようになります：
 
 ```java
 public interface MapState<T> extends State {
@@ -299,7 +299,7 @@ public interface MapState<T> extends State {
 }
 ```
 
-When you do aggregations on non-grouped streams (a global aggregation), Trident expects your State object to implement the "Snapshottable" interface:
+グループ化されていないストリーム(global aggregation)にアグリゲーションを実行すると、TridentはStateオブジェクトが"Snapshottable"インターフェイスを実装することを期待します。
 
 ```java
 public interface Snapshottable<T> extends State {
@@ -309,11 +309,11 @@ public interface Snapshottable<T> extends State {
 }
 ```
 
-[MemoryMapState]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/testing/MemoryMapState.java) and [MemcachedState](https://github.com/nathanmarz/trident-memcached/blob/{{page.version}}/src/jvm/trident/memcached/MemcachedState.java) each implement both of these interfaces.
+[MemoryMapState]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/testing/MemoryMapState.java)や [MemcachedState](https://github.com/nathanmarz/trident-memcached/blob/{{page.version}}/src/jvm/trident/memcached/MemcachedState.java)はそれぞれこれらの両方のインタフェースを実装しています。
 
 ## Implementing Map States
 
-Trident makes it easy to implement MapState's, doing almost all the work for you. The OpaqueMap, TransactionalMap, and NonTransactionalMap classes implement all the logic for doing the respective fault-tolerance logic. You simply provide these classes with an IBackingMap implementation that knows how to do multiGets and multiPuts of the respective key/values. IBackingMap looks like this:
+TridentはMapStateの実装を容易にし、ほぼすべての作業を行います。OpaqueMapクラス、TransactionalMapクラス、およびNonTransactionalMapクラスは、それぞれのフォールトトレランスロジックを実行するためのすべてのロジックを実装します。これらのクラスに、それぞれのキー/バリューのmultiGetsとmultiPutsを行う方法を知っているIBackingMapの実装を提供するだけです。IBackingMapは次のようになります:
 
 ```java
 public interface IBackingMap<T> {
@@ -322,10 +322,10 @@ public interface IBackingMap<T> {
 }
 ```
 
-OpaqueMap's will call multiPut with [OpaqueValue]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/OpaqueValue.java)'s for the vals, TransactionalMap's will give [TransactionalValue]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/TransactionalValue.java)'s for the vals, and NonTransactionalMaps will just pass the objects from the topology through.
+OpaqueMapは値に[OpaqueValue]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/OpaqueValue.java)を指定してmultiPutを呼び出し、TransactionalMapは値に[TransactionalValue]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/TransactionalValue.java)を指定し、NonTransactionalMapsはトポロジからオブジェクトを渡すだけです。
 
-Trident also provides the [CachedMap]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/CachedMap.java) class to do automatic LRU caching of map key/vals.
+また、Tridentはマップのキー/バリューについて自動的にLRUキャッシングを行う[CachedMap]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/CachedMap.java)クラスも提供します。
 
-Finally, Trident provides the [SnapshottableMap]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/SnapshottableMap.java) class that turns a MapState into a Snapshottable object, by storing global aggregations into a fixed key.
+最後に、Tridentは[SnapshottableMap]({{page.git-blob-base}}/storm-core/src/jvm/org/apache/storm/trident/state/map/SnapshottableMap.java)クラスを提供し、グローバルな集約を固定キーに格納することでMapStateをSnapshottableオブジェクトに変換します。
 
-Take a look at the implementation of [MemcachedState](https://github.com/nathanmarz/trident-memcached/blob/master/src/jvm/trident/memcached/MemcachedState.java) to see how all these utilities can be put together to make a high performance MapState implementation. MemcachedState allows you to choose between opaque transactional, transactional, and non-transactional semantics.
+[MemcachedState](https://github.com/nathanmarz/trident-memcached/blob/master/src/jvm/trident/memcached/MemcachedState.java)の実装を見て、MapStateの高性能実装を実現するためにこれらのユーティリティをどのように組み合わせるかを見てみましょう。MemcachedStateでは、opaque transactional, transactional, ならびに non-transactionalのセマンティクスを選択できます。
