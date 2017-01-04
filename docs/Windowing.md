@@ -4,17 +4,17 @@ layout: documentation
 documentation: true
 ---
 
-Storm core has support for processing a group of tuples that falls within a window. Windows are specified with the 
-following two parameters,
+Stormコアは、ウィンドウ内にあるタプルのグループを処理するためのサポートを備えています。
+Windowsは、次の2つのパラメータで指定されます。
 
-1. Window length - the length or duration of the window
-2. Sliding interval - the interval at which the windowing slides
+1. Window length - ウィンドウの長さまたは持続時間
+2. Sliding interval - ウィンドウがスライドする間隔
 
 ## Sliding Window
 
-Tuples are grouped in windows and window slides every sliding interval. A tuple can belong to more than one window.
+タプルはウィンドウ内にグループ分けされ、ウィンドウはスライドのインターバルごとにスライドします。タプルはひとつ以上のウィンドウに属することができます。
 
-For example a time duration based sliding window with length 10 secs and sliding interval of 5 seconds.
+長さが10秒でスライディングインターバルが5秒である持続時間ベースのスライドウィンドウの例です。
 
 ```
 | e1 e2 | e3 e4 e5 e6 | e7 e8 e9 |...
@@ -24,14 +24,13 @@ For example a time duration based sliding window with length 10 secs and sliding
         |------------ w2 ------->|
 ```
 
-The window is evaluated every 5 seconds and some of the tuples in the first window overlaps with the second one.
-		
+ウィンドウは5秒ごとに評価され、第1のウィンドウ内のタプルのいくつかは第2のウィンドウと重複します。
 
 ## Tumbling Window
 
-Tuples are grouped in a single window based on time or count. Any tuple belongs to only one of the windows.
+タプルは、時間またはカウントに基づいて1つのウィンドウにグループ化されます。どのタプルも1つのウィンドウにしか属しません。
 
-For example a time duration based tumbling window with length 5 secs.
+長さが5秒の持続時間に基づくタンブリングウィンドウの例です。
 
 ```
 | e1 e2 | e3 e4 e5 e6 | e7 e8 e9 |...
@@ -39,11 +38,11 @@ For example a time duration based tumbling window with length 5 secs.
    w1         w2            w3
 ```
 
-The window is evaluated every five seconds and none of the windows overlap.
+ウィンドウは5秒ごとに評価され、ウィンドウが重なることはありません。
 
-Storm supports specifying the window length and sliding intervals as a count of the number of tuples or as a time duration.
+Stormは、タプル数のカウントまたは持続時間で、ウィンドウの長さとスライド間隔を指定することをサポートしています。
 
-The bolt interface `IWindowedBolt` is implemented by bolts that needs windowing support.
+Boltインタフェース`IWindowedBolt`は、ウィンドウ処理のサポートが必要なBoltによって実装されています。
 
 ```java
 public interface IWindowedBolt extends IComponent {
@@ -57,14 +56,14 @@ public interface IWindowedBolt extends IComponent {
 }
 ```
 
-Every time the window activates, the `execute` method is invoked. The TupleWindow parameter gives access to the current tuples
-in the window, the tuples that expired and the new tuples that are added since last window was computed which will be useful 
-for efficient windowing computations.
+ウィンドウがアクティブになるたびに、`execute`メソッドが呼び出されます。
+TupleWindowパラメータで、ウィンドウ内の現在のタプル、有効期限が切れたタプル、および最後のウィンドウが計算された後に追加された新しいタプルにアクセスできるため、
+効率的なウィンドウ処理の計算に役立ちます。
 
-Bolts that needs windowing support typically would extend `BaseWindowedBolt` which has the apis for specifying the
-window length and sliding intervals.
+ウィンドウのサポートを必要とするBoltは、通常、
+ウィンドウの長さとスライドの間隔を指定するためのAPIを持つ`BaseWindowedBolt`を拡張します。
 
-E.g. 
+例えば、
 
 ```java
 public class SlidingWindowBolt extends BaseWindowedBolt {
@@ -101,7 +100,7 @@ public static void main(String[] args) {
 }
 ```
 
-The following window configurations are supported.
+以下のウィンドウ設定がサポートされています。
 
 ```java
 withWindow(Count windowLength, Count slidingInterval)
@@ -131,8 +130,8 @@ Time duration based tumbling window that tumbles after the specified time durati
 ```
 
 ## Tuple timestamp and out of order tuples
-By default the timestamp tracked in the window is the time when the tuple is processed by the bolt. The window calculations
-are performed based on the processing timestamp. Storm has support for tracking windows based on the source generated timestamp.
+デフォルトでは、ウィンドウ内で追跡されるタイムスタンプは、タプルがBoltで処理される時刻です。ウィンドウの計算は、processing timestampに基づいて実行されます。
+Stormは、source generated timestampに基づいてウィンドウを追跡する機能をサポートしています。
 
 ```java
 /**
@@ -144,13 +143,11 @@ are performed based on the processing timestamp. Storm has support for tracking 
 public BaseWindowedBolt withTimestampField(String fieldName)
 ```
 
-The value for the above `fieldName` will be looked up from the incoming tuple and considered for windowing calculations. 
-If the field is not present in the tuple an exception will be thrown. Along with the timestamp field name, a time lag parameter 
-can also be specified which indicates the max time limit for tuples with out of order timestamps. 
+上記の`fieldName`の値は入力タプルからルックアップされ、ウィンドウ計算で考慮されます。
+フィールドがタプルに存在しない場合、例外がスローされます。タイムスタンプのフィールド名とともに、タイムスタンプの順序が乱れたタプルの最大時間制限を示すタイムラグパラメータも指定できます。
 
-E.g. If the lag is 5 secs and a tuple `t1` arrived with timestamp `06:00:05` no tuples may arrive with tuple timestamp earlier than `06:00:00`. If a tuple
-arrives with timestamp 05:59:59 after `t1` and the window has moved past `t1`, it will be treated as a late tuple and not processed. Currently the late
- tuples are just logged in the worker log files at INFO level.
+例えば、lagが5秒で、タプル`t1`がタイムスタンプ`06：00：05`で到着した場合、他のタプルがタイムスタンプ`06：00：00`より早く到着することはありません。
+あるタプルが`t1`の後にタイムスタンプ05:59:59で到着し、ウィンドウが`t1`を過ぎて移動した場合、それは遅いタプルとして扱われ、処理されません。現在、遅れてきたタプルは、ワーカーのログファイルにINFOレベルで記録されています。
 
 ```java
 /**
@@ -163,12 +160,12 @@ public BaseWindowedBolt withLag(Duration duration)
 ```
 
 ### Watermarks
-For processing tuples with timestamp field, storm internally computes watermarks based on the incoming tuple timestamp. Watermark is 
-the minimum of the latest tuple timestamps (minus the lag) across all the input streams. At a higher level this is similar to the watermark concept
-used by Flink and Google's MillWheel for tracking event based timestamps.
+タイムスタンプのフィールドを有するタプルを処理するために、Stormは入力タプルのタイムスタンプに基づいてwatermarkを内部的に計算します。
+Watermarkは、すべての入力ストリームにわたる最新のタプルタイムスタンプの最小値(から、ラグを差し引いたもの)です。
+より高いレベルでは、これは、イベントベースのタイムスタンプを追跡するためにFlinkおよびGoogleのMillWheelによって使用されるwatermarkのコンセプトと似たものです。
 
-Periodically (default every sec), the watermark timestamps are emitted and this is considered as the clock tick for the window calculation if 
-tuple based timestamps are in use. The interval at which watermarks are emitted can be changed with the below api.
+タプルベースのタイムスタンプが使用されている場合は、定期的に(デフォルトでは毎秒)、watermarkのタイムスタンプがemitされ、これはウィンドウ計算のクロックティックとみなされます。 
+watermarkがemitされる間隔は、下記のAPIで変更できます。
  
 ```java
 /**
@@ -181,9 +178,9 @@ public BaseWindowedBolt withWatermarkInterval(Duration interval)
 ```
 
 
-When a watermark is received, all windows up to that timestamp will be evaluated.
+watermarkが受信されると、そのタイムスタンプまでのすべてのウィンドウが評価されます。
 
-For example, consider tuple timestamp based processing with following window parameters,
+たとえば、次のウィンドウパラメーターでタプルのタイムスタンプに基づく処理を行うとすると、
 
 `Window length = 20s, sliding interval = 10s, watermark emit frequency = 1s, max lag = 5s`
 
@@ -192,48 +189,40 @@ For example, consider tuple timestamp based processing with following window par
 0     10    20    30    40    50    60    70
 ````
 
-Current ts = `09:00:00`
+現時刻を ts = `09:00:00` として、
 
-Tuples `e1(6:00:03), e2(6:00:05), e3(6:00:07), e4(6:00:18), e5(6:00:26), e6(6:00:36)` are received between `9:00:00` and `9:00:01`
+タプル`e1(6:00:03), e2(6:00:05), e3(6:00:07), e4(6:00:18), e5(6:00:26), e6(6:00:36)`が`9:00:00`から`9:00:01`の間に受信されたとすると、
 
-At time t = `09:00:01`, watermark w1 = `6:00:31` is emitted since no tuples earlier than `6:00:31` can arrive.
+時刻 t = `09:00:01` において、`6:00:31`より早くタプルが到達することはないので、 watermark w1 = `6:00:31` がemitされます。
 
-Three windows will be evaluated. The first window end ts (06:00:10) is computed by taking the earliest event timestamp (06:00:03) 
-and computing the ceiling based on the sliding interval (10s).
+3つのウィンドウが評価されます。最初のウィンドウ終了時刻 ts(06:00:10) は、最も早いイベントタイムスタンプ (06:00:03) をとることと、スライド間隔(10s)に基づいてceilingを計算することによって導かれます。
 
 1. `5:59:50 - 06:00:10` with tuples e1, e2, e3
 2. `6:00:00 - 06:00:20` with tuples e1, e2, e3, e4
 3. `6:00:10 - 06:00:30` with tuples e4, e5
 
-e6 is not evaluated since watermark timestamp `6:00:31` is older than the tuple ts `6:00:36`.
+e6は、watermarkタイムスタンプ`6:00:31`がタプルのタイムスタンプts`6:00:36`より古いため、評価されません。
 
-Tuples `e7(8:00:25), e8(8:00:26), e9(8:00:27), e10(8:00:39)` are received between `9:00:01` and `9:00:02`
+タプル `e7(8:00:25), e8(8:00:26), e9(8:00:27), e10(8:00:39)` は、 `9:00:01` から `9:00:02` の間に受信されます。
 
-At time t = `09:00:02` another watermark w2 = `08:00:34` is emitted since no tuples earlier than `8:00:34` can arrive now.
+時刻 t = `09:00:02` において、`8:00:34`より早くタプルが到達することはないので、別の watermark w2 = `08:00:34` がemitされます。
 
-Three windows will be evaluated,
+3つのウィンドウが評価され、
 
 1. `6:00:20 - 06:00:40` with tuples e5, e6 (from earlier batch)
 2. `6:00:30 - 06:00:50` with tuple e6 (from earlier batch)
 3. `8:00:10 - 08:00:30` with tuples e7, e8, e9
 
-e10 is not evaluated since the tuple ts `8:00:39` is beyond the watermark time `8:00:34`.
+e10は、タプルのタイムスタンプ `8:00:39` が、watermarkのタイムスタンプ`8:00:34`を超えているため、評価されません。
 
-The window calculation considers the time gaps and computes the windows based on the tuple timestamp.
+ウィンドウは、時間のギャップを考慮し、タプルのタイムスタンプに基づいてウィンドウを計算することによって導出されています。
 
 ## Guarentees
-The windowing functionality in storm core currently provides at-least once guarentee. The values emitted from the bolts
-`execute(TupleWindow inputWindow)` method are automatically anchored to all the tuples in the inputWindow. The downstream
-bolts are expected to ack the received tuple (i.e the tuple emitted from the windowed bolt) to complete the tuple tree. 
-If not the tuples will be replayed and the windowing computation will be re-evaluated. 
+Stormコアのウインドウ機能は、現在、at-least onceを保証しています。Boltの`execute(TupleWindow inputWindow)`メソッドからemitされた値は自動的にinputWindowのすべてのタプルにanchorされます。下流のBoltは、受け取ったタプル（すなわちwindow化されたBoltからemitされたタプル）にackし、タプルツリーを完了させる必要があります。そうでない場合、タプルがリプレイされ、ウィンドウ演算が再評価されます。
 
-The tuples in the window are automatically acked when the expire, i.e. when they fall out of the window after 
-`windowLength + slidingInterval`. Note that the configuration `topology.message.timeout.secs` should be sufficiently more 
-than `windowLength + slidingInterval` for time based windows; otherwise the tuples will timeout and get replayed and can result
-in duplicate evaluations. For count based windows, the configuration should be adjusted such that `windowLength + slidingInterval`
-tuples can be received within the timeout period.
+ウィンドウ内のタプルは、有効期限が切れたとき、すなわち、`windowLength + slidingInterval`経過してウィンドウから抜けたときに、自動的にackされます。つまり、ウィンドウのタプルは、`windowLength + slidingInterval`です。設定`topology.message.timeout.secs`は、時間ベースのウィンドウの場合は` windowLength + slidingInterval`よりも十分に大きくなければならないことに注意してください; そうしないと、タプルはタイムアウトしてリプレイされ、重複した評価が行われる可能性があります。カウントベースのウィンドウでは、`windowLength + slidingInterval`を、タプルをタイムアウト時間内に受信できるように同じ設定について調整する必要があります。
 
 ## Example topology
-An example toplogy `SlidingWindowTopology` shows how to use the apis to compute a sliding window sum and a tumbling window 
-average.
+例`SlidingWindowTopology`は、
+これらのAPIを使用してスライディングウィンドウによる合計とタンブリングウィンドウによる平均を計算する方法を示しています。
 
