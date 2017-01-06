@@ -6,33 +6,33 @@ documentation: true
 
 # Running Apache Storm Securely
 
-Apache Storm offers a range of configuration options when trying to secure
-your cluster.  By default all authentication and authorization is disabled but 
-can be turned on as needed.
+Apache Stormは、クラスタをセキュアにするためのさまざまな設定オプションを提供します
+デフォルトでは、すべての認証と認可は無効になっていますが、
+必要に応じて有効にすることができます。
 
 ## Firewall/OS level Security
 
-You can still have a secure storm cluster without turning on formal
-Authentication and Authorization. But to do so usually requires 
-configuring your Operating System to restrict the operations that can be done.
-This is generally a good idea even if you plan on running your cluster with Auth.
+正式な認証と認可を有効にすることなく、安全なStormのクラスタを作成できます。
+しかし、そうするには、通常、
+実行可能な操作を制限するようにオペレーティングシステムを設定する必要があります。
+認証と認可が有効なクラスタを運用する予定がある場合でも、これは一般的には良い考えです。
 
-The exact detail of how to setup these precautions varies a lot and is beyond
-the scope of this document.
+これらの予防措置を設定する方法の正確な詳細は大きく異なり、
+このドキュメントのスコープを超えています。
 
-It is generally a good idea to enable a firewall and restrict incoming network
-connections to only those originating from the cluster itself and from trusted
-hosts and services, a complete list of ports storm uses are below. 
+ファイアウォールを有効にして、ネットワークのインバウンドをクラスタそのものや信頼できるホストやサービスだけに制限するのは、
+一般的には良い考えです。
+Stormが使用するportの完全なリストは以下の通りです。
 
-If the data your cluster is processing is sensitive it might be best to setup
-IPsec to encrypt all traffic being sent between the hosts in the cluster.
+クラスタが処理しているデータがsensitiveな場合は、
+クラスタ内のホスト間で送信されているすべてのトラフィックを暗号化するようにIPsecを設定するのがもっとも望ましいです。
 
 ### Ports
 
 | Default Port | Storm Config | Client Hosts/Processes | Server |
 |--------------|--------------|------------------------|--------|
-| 2181 | `storm.zookeeper.port` | Nimbus, Supervisors, and Worker processes | Zookeeper |
-| 6627 | `nimbus.thrift.port` | Storm clients, Supervisors, and UI | Nimbus |
+| 2181 | `storm.zookeeper.port` | Nimbus, Supervisors, ならびに Worker processes | Zookeeper |
+| 6627 | `nimbus.thrift.port` | Storm clients, Supervisors, ならびに UI | Nimbus |
 | 8080 | `ui.port` | Client Web Browsers | UI |
 | 8000 | `logviewer.port` | Client Web Browsers | Logviewer |
 | 3772 | `drpc.port` | External DRPC Clients | DRPC |
@@ -43,28 +43,24 @@ IPsec to encrypt all traffic being sent between the hosts in the cluster.
 
 ### UI/Logviewer
 
-The UI and logviewer processes provide a way to not only see what a cluster is
-doing, but also manipulate running topologies.  In general these processes should
-not be exposed except to users of the cluster.
+UIとlogviewerプロセスは、クラスタが何をしているかを見るだけでなく、
+実行中のトポロジを操作する方法を提供します。
+通常、これらのプロセスをクラスタのユーザー以外は公開しないでください。
 
-Some form of Authentication is typically required, with using java servlet filters 
+通常、javaサーブレットフィルタとあわせて、いくつかの形式の認証が要求されます。
 
 ```yaml
 ui.filter: "filter.class"
 ui.filter.params: "param1":"value1"
 ```
-or by restricting the UI/log viewers ports to only accept connections from local
-hosts, and then front them with another web server, like Apache httpd, that can
-authenticate/authorize incoming connections and
-proxy the connection to the storm process.  To make this work the ui process must have
-logviewer.port set to the port of the proxy in its storm.yaml, while the logviewers
-must have it set to the actual port that they are going to bind to.
+あるいは、UIとlogviewerのポートをローカルホストからの接続のみを受け入れるように制限し、受信した接続を認証/許可してStormのプロセスにプロキシできる別のWebサーバー(Apacheのhttpdなど)をフロントにすることもできます。これが機能するようにするには、uiプロセスはstorm.yamlでlogviewer.portをプロキシのポートに設定する必要がありますが、一方で、logviewersはバインドしようとしている実際のポートに設定する必要があります。
 
-The servlet filters are preferred because it allows individual topologies to
-specificy who is and who is not allowed to access the pages associated with
-them.  
+サーブレットフィルタを使用することによって、
+トポロジごとに関連するページにアクセスすることを許可されている/いないユーザーを指定できるため、
+サーブレットフィルタを使用するのが望ましいです。
 
-Storm UI can be configured to use AuthenticationFilter from hadoop-auth.
+Storm UIは、hadoop-authからAuthenticationFilterを使用するように設定できます。
+
 ```yaml
 ui.filter: "org.apache.hadoop.security.authentication.server.AuthenticationFilter"
 ui.filter.params:
@@ -73,26 +69,28 @@ ui.filter.params:
    "kerberos.keytab": "/vagrant/keytabs/http.keytab"
    "kerberos.name.rules": "RULE:[2:$1@$0]([jt]t@.*EXAMPLE.COM)s/.*/$MAPRED_USER/ RULE:[2:$1@$0]([nd]n@.*EXAMPLE.COM)s/.*/$HDFS_USER/DEFAULT"
 ```
-make sure to create a principal 'HTTP/{hostname}' (here hostname should be the one where UI daemon runs
 
+プリンシパル'HTTP/{hostname}'を作成していることを確認してください(ここでは、ホスト名はUIデーモンが動作する場所にする必要があります)
+
+いったん設定すると、ユーザーはUIにアクセスする前にkinitを行う必要があります。
 Once configured users needs to do kinit before accessing UI.
-Ex:
+例:
 curl  -i --negotiate -u:anyUser  -b ~/cookiejar.txt -c ~/cookiejar.txt  http://storm-ui-hostname:8080/api/v1/cluster/summary
 
-1. Firefox: Goto about:config and search for network.negotiate-auth.trusted-uris double-click to  add value "http://storm-ui-hostname:8080"
-2. Google-chrome:  start from command line with: google-chrome --auth-server-whitelist="*storm-ui-hostname" --auth-negotiate-delegate-whitelist="*storm-ui-hostname"   
-3. IE:  Configure trusted websites to include "storm-ui-hostname" and allow negotiation for that website 
+1. Firefox: about:configにいって、network.negotiate-auth.trusted-urisを検索し、ダブルクリックして "http://storm-ui-hostname:8080" を追加してください
+2. Google-chrome:  コマンドラインから: google-chrome --auth-server-whitelist="*storm-ui-hostname" --auth-negotiate-delegate-whitelist="*storm-ui-hostname"   
+3. IE:  "storm-ui-hostname"を含むように信頼できるWebサイトを設定し、そのWebサイトとのネゴシエーションを許可してください
 
-**Caution**: In AD MIT Keberos setup the key size is bigger than the default UI jetty server request header size. Make sure you set ui.header.buffer.bytes to 65536 in storm.yaml. More details are on [STORM-633](https://issues.apache.org/jira/browse/STORM-633)
+**注意**: AD MIT Keberosの設定では、キーのサイズがデフォルトのUI jettyサーバーの要求ヘッダーサイズより大きくなっています。storm.yamlでui.header.buffer.bytesを65536に設定してください。詳細は[STORM-633](https://issues.apache.org/jira/browse/STORM-633)を参照してください。
 
 
 ## UI / DRPC SSL 
 
-Both UI and DRPC allows users to configure ssl .
+UIとDRPCの両方で、ユーザーはsslを設定できます。
 
 ### UI
 
-For UI users needs to set following config in storm.yaml. Generating keystores with proper keys and certs should be taken care by the user before this step.
+UIユーザーは、storm.yamlに次のconfigを設定する必要があります。この手順を実行する前に、適切なキーと証明書を持つキーストアを生成する必要があります。
 
 1. ui.https.port 
 2. ui.https.keystore.type (example "jks")
@@ -100,20 +98,22 @@ For UI users needs to set following config in storm.yaml. Generating keystores w
 4. ui.https.keystore.password (keystore password)
 5. ui.https.key.password (private key password)
 
-optional config 
+オプション設定
+
 6. ui.https.truststore.path (example "/etc/ssl/storm_truststore.jks")
 7. ui.https.truststore.password (truststore password)
 8. ui.https.truststore.type (example "jks")
 
-If users want to setup 2-way auth
-9. ui.https.want.client.auth (If this set to true server requests for client certifcate authentication, but keeps the connection if no authentication provided)
-10. ui.https.need.client.auth (If this set to true server requires client to provide authentication)
+双方向の認証を要求する場合、
+
+9. ui.https.want.client.auth (これをtrueにすると、サーバーがクライアント証明書認証を要求し、認証が提供されていない場合でも接続を維持する)
+10. ui.https.need.client.auth (これをtrueにすると、サーバーがクライアントに認証を要求する)
 
 
 
 
 ### DRPC
-similarly to UI , users need to configure following for DRPC
+UIと同様に、ユーザーはDRPCのために以下の設定を行う必要があります
 
 1. drpc.https.port 
 2. drpc.https.keystore.type (example "jks")
@@ -121,14 +121,16 @@ similarly to UI , users need to configure following for DRPC
 4. drpc.https.keystore.password (keystore password)
 5. drpc.https.key.password (private key password)
 
-optional config 
+オプション設定
+
 6. drpc.https.truststore.path (example "/etc/ssl/storm_truststore.jks")
 7. drpc.https.truststore.password (truststore password)
 8. drpc.https.truststore.type (example "jks")
 
-If users want to setup 2-way auth
-9. drpc.https.want.client.auth (If this set to true server requests for client certifcate authentication, but keeps the connection if no authentication provided)
-10. drpc.https.need.client.auth (If this set to true server requires client to provide authentication)
+双方向の認証を要求する場合、
+
+9. drpc.https.want.client.auth (これをtrueにすると、サーバーがクライアント証明書認証を要求し、認証が提供されていない場合でも接続を維持する)
+10. drpc.https.need.client.auth (これをtrueにすると、サーバーがクライアントに認証を要求する)
 
 
 
@@ -136,20 +138,19 @@ If users want to setup 2-way auth
 
 ## Authentication (Kerberos)
 
-Storm offers pluggable authentication support through thrift and SASL.  This
-example only goes off of Kerberos as it is a common setup for most big data
-projects.
+Stormは、thriftとSASLによるプラグイン可能な認証サポートを提供します。
+この例は、大部分の大規模なデータプロジェクトの一般的な設定であるため、
+Kerberosについてだけ扱います。
 
-Setting up a KDC and configuring kerberos on each node is beyond the scope of
-this document and it is assumed that you have done that already.
+各ノードでKDCを設定し、kerberosを設定することは、
+このドキュメントのスコープを超えており、すでに行っていることを前提としています。
 
 ### Create Headless Principals and keytabs
 
-Each Zookeeper Server, Nimbus, and DRPC server will need a service principal, which, by convention, includes the FQDN of the host it will run on.  Be aware that the zookeeper user *MUST* be zookeeper.  
-The supervisors and UI also need a principal to run as, but because they are outgoing connections they do not need to be service principals. 
-The following is an example of how to setup kerberos principals, but the
-details may vary depending on your KDC and OS.
-
+各Zookeeper Server、Nimbus、およびDRPCサーバーにはサービスプリンシパルが必要です。これには、規約として、実行するホストのFQDNが含まれます。zookeeperのユーザーはzookeeperで*なければならない*ことに注意してください。
+スーパーバイザーとUIには、実行するためのプリンシパルが必要ですが、アウトバウンドであるためサービスプリンシパルである必要はありません。
+以下は、Kerberosのプリンシパルを設定する方法の例ですが、
+詳細はKDCおよびOSによって異なる場合があります。
 
 ```bash
 # Zookeeper (Will need one of these for each box in teh Zk ensamble)
@@ -163,25 +164,27 @@ sudo kadmin.local -q 'addprinc storm@STORM.EXAMPLE.COM'
 sudo kadmin.local -q "ktadd -k /tmp/storm.keytab storm@STORM.EXAMPLE.COM"
 ```
 
-be sure to distribute the keytab(s) to the appropriate boxes and set the FS permissions so that only the headless user running ZK, or storm has access to them.
+適切なサーバーにkeytabを配布し、ZKまたはStormを実行しているヘッドレスユーザーのみがアクセスできるようにファイルシステムにおけるアクセス権限を設定してください。
 
 #### Storm Kerberos Configuration
 
-Both storm and Zookeeper use jaas configuration files to log the user in.
-Each jaas file may have multiple sections for different interfaces being used.
+StormとZookeeperはjaas設定ファイルを使用してユーザーをログインさせます。
+各jaasファイルには、使用されているインタフェースに応じた複数のセクションがあります。
 
-To enable Kerberos authentication in storm you need to set the following storm.yaml configs
+StormでKerberos認証を有効にするには、次の設定をstorm.yamlにセットする必要があります
+
 ```yaml
 storm.thrift.transport: "org.apache.storm.security.auth.kerberos.KerberosSaslTransportPlugin"
 java.security.auth.login.config: "/path/to/jaas.conf"
 ```
 
-Nimbus and the supervisor processes will also connect to ZooKeeper(ZK) and we want to configure them to use Kerberos for authentication with ZK. To do this append 
+NimbusとスーパーバイザプロセスもZooKeeper(ZK)に接続し、ZKでの認証にKerberosを使用するように設定したいと考えています。これ行うには、nimbus, ui, and supervisorのchildoptsに以下を追加します。
+
 ```
 -Djava.security.auth.login.config=/path/to/jaas.conf
 ```
 
-to the childopts of nimbus, ui, and supervisor.  Here is an example given the default childopts settings at the time of writing:
+執筆時点でのデフォルトのchildoptsに設定が与えられた例を次に示します:
 
 ```yaml
 nimbus.childopts: "-Xmx1024m -Djava.security.auth.login.config=/path/to/jaas.conf"
@@ -189,12 +192,12 @@ ui.childopts: "-Xmx768m -Djava.security.auth.login.config=/path/to/jaas.conf"
 supervisor.childopts: "-Xmx256m -Djava.security.auth.login.config=/path/to/jaas.conf"
 ```
 
-The jaas.conf file should look something like the following for the storm nodes.
-The StormServer section is used by nimbus and the DRPC Nodes.  It does not need to be included on supervisor nodes.
-The StormClient section is used by all storm clients that want to talk to nimbus, including the ui, logviewer, and supervisor.  We will use this section on the gateways as well but the structure of that will be a bit different.
-The Client section is used by processes wanting to talk to zookeeper and really only needs to be included with nimbus and the supervisors.
-The Server section is used by the zookeeper servers.
-Having unused sections in the jaas is not a problem.
+Stormのノードについては、jaas.confファイルは次のようになります。
+StormServerセクションは、nimbusとDRPCノードで使用されます。supervisorのノードに含める必要はありません。
+StormClientセクションは、ui、logviewer、およびsupervisorを含む、nimbusと通信するすべてのStormのクライアントによって使用されます。このセクションはゲートウェイでも使用しますが、その構造は少し異なります。
+Clientセクションは、zookeeperと通信するプロセスで使用され、実際にはnimbusとsupervisorに含める必要があります。
+Serverセクションは、zookeeperのサーバーによって使用されます。
+jaasに未使用セクションがあっても問題になりません。
 
 ```
 StormServer {
@@ -233,7 +236,8 @@ Server {
 };
 ```
 
-The following is an example based off of the keytabs generated
+以下は、生成されたkeytabに基づく例です
+
 ```
 StormServer {
    com.sun.security.auth.module.Krb5LoginModule required
@@ -272,24 +276,24 @@ Server {
 };
 ```
 
-Nimbus also will translate the principal into a local user name, so that other services can use this name.  To configure this for Kerberos authentication set
+Nimbusは、プリンシパルをローカルユーザー名に変換して、他のサービスがこの名前を使用できるようにします。Kerberosの認証セットに対してこれを設定するには、
 
 ```
 storm.principal.tolocal: "org.apache.storm.security.auth.KerberosPrincipalToLocal"
 ```
 
-This only needs to be done on nimbus, but it will not hurt on any node.
-We also need to inform the topology who the supervisor daemon and the nimbus daemon are running as from a ZooKeeper perspective.
+これはnimbuでのみ行う必要があり、他のどのノード影響はありません。
+また、ZooKeeperの観点からトポロジ、supervisorデーモンとnimbusデーモンが、動作していることを通知する必要があります。
 
 ```
 storm.zookeeper.superACL: "sasl:${nimbus-user}"
 ```
 
-Here *nimbus-user* is the Kerberos user that nimbus uses to authenticate with ZooKeeper.  If ZooKeeeper is stripping host and realm then this needs to have host and realm stripped too.
+ここで、*nimbus-user*は、nimbusがZooKeeperで認証するために使用するKerberosユーザーです。ZooKeeeperがホストとrealmを削除している場合は、このユーザーでもホストとrealmも削除する必要があります。
 
 #### ZooKeeper Ensemble
 
-Complete details of how to setup a secure ZK are beyond the scope of this document.  But in general you want to enable SASL authentication on each server, and optionally strip off host and realm
+セキュアなZKを設定する方法の詳細は、このドキュメントの範囲を超えています。しかし、一般的には、各サーバでSASL認証を有効にし、必要に応じてホストとrealmを取り除くはずです。
 
 ```
 authProvider.1 = org.apache.zookeeper.server.auth.SASLAuthenticationProvider
@@ -297,14 +301,15 @@ kerberos.removeHostFromPrincipal = true
 kerberos.removeRealmFromPrincipal = true
 ```
 
-And you want to include the jaas.conf on the command line when launching the server so it can use it can find the keytab.
+また、サーバーを起動するときにコマンドラインにjaas.confを含めて、keytabが見つかるようにすることもできます。
+
 ```
 -Djava.security.auth.login.config=/jaas/zk_jaas.conf
 ```
 
 #### Gateways
 
-Ideally the end user will only need to run kinit before interacting with storm.  To make this happen seamlessly we need the default jaas.conf on the gateways to be something like
+理想的には、エンドユーザーはstormと対話する前にkinitを実行する必要だけあります。これをシームレスに行うために、ゲートウェイ上のデフォルトのjaas.confを次のようにする必要があります
 
 ```
 StormClient {
@@ -315,50 +320,53 @@ StormClient {
 };
 ```
 
-The end user can override this if they have a headless user that has a keytab.
+エンドユーザーは、keytabを持つヘッドレスユーザーがいる場合、これを上書きすることができます。
 
 ### Authorization Setup
 
-*Authentication* does the job of verifying who the user is, but we also need *authorization* to do the job of enforcing what each user can do.
+*認証*はユーザーが何者なのかを確認する作業ですが、各ユーザーができることを制御するために*認可*も必要です。
 
-The preferred authorization plug-in for nimbus is The *SimpleACLAuthorizer*.  To use the *SimpleACLAuthorizer*, set the following:
+nimbusの認可についてのデフォルトのプラグインは*SimpleACLAuthorizer*。です*SimpleACLAuthorizer*を使用するには、次のように設定します:
 
 ```yaml
 nimbus.authorizer: "org.apache.storm.security.auth.authorizer.SimpleACLAuthorizer"
 ```
 
-DRPC has a separate authorizer configuration for it.  Do not use SimpleACLAuthorizer for DRPC.
+DRPCには別の認可設定があります。DRPCにSimpleACLAuthorizerを使用しないでください。
 
-The *SimpleACLAuthorizer* plug-in needs to know who the supervisor users are, and it needs to know about all of the administrator users, including the user running the ui daemon. 
+*SimpleACLAuthorizer*プラグインは、supervisorのユーザが誰であるかを知る必要があり、また、uiデーモンを実行しているユーザを含むすべての管理者ユーザについて知る必要があります。
 
-These are set through *nimbus.supervisor.users* and *nimbus.admins* respectively.  Each can either be a full Kerberos principal name, or the name of the user with host and realm stripped off.
+これらはそれぞれ*nimbus.supervisor.users*と**nimbus.admins*によって設定されます。それぞれは、完全なKerberosプリンシパル名、またはホストとrealmが削除されたユーザーの名前のいずれかです。
 
-The Log servers have their own authorization configurations.  These are set through *logs.users* and *logs.groups*.  These should be set to the admin users or groups for all of the nodes in the cluster.  
+ログサーバーには独自の認証設定があります。これらは*logs.users*と*logs.groups*によって設定されます。 れらは、クラスタ内のすべてのノードの管理ユーザーまたはグループに設定する必要があります。
 
-When a topology is submitted, the submitting user can specify users in this list as well.  The users and groups specified-in addition to the users in the cluster-wide setting-will be granted access to the submitted topology's worker logs in the logviewers.
+トポロジがsubmitされると、送信側ユーザーはこのリスト内のユーザーも指定できます。指定されたユーザーおよびグループ(ならびにクラスタ全体の設定のユーザーに加えて)には、ログビューアで送信されたトポロジのワーカーログへのアクセスが許可されます。
+指定されたユーザーおよびグループ（クラスタ全体の設定のユーザーに加えて）には、submitされたトポロジのワーカーログへのログビューアにおけるアクセス権が与えられます。
 
 ### Supervisors headless User and group Setup
 
-To ensure isolation of users in multi-tenancy, there is need to run supervisors and headless user and group unique to execution on the supervisor nodes.  To enable this follow below steps.
-1. Add headlessuser to all supervisor hosts.
-2. Create unique group and make it the primary group for the headless user on the supervisor nodes.
-3. The set following properties on storm for these supervisor nodes.
+マルチテナントでユーザーを分離するためには、supervisorノードでの実行にsupervisorとヘッドレスのユーザとグループを一意してに実行する必要があります。これを有効にするには以下の手順に従ってください。
+
+1. すべてのスーパーバイザホストにヘッドレスユーザを追加する。
+2. 一意なグループを作成し、supervisorノード上のヘッドレスユーザのプライマリグループにします。
+3. これらのスーパバイザノードのストームに関するプロパティを設定します。
 
 ### Multi-tenant Scheduler
 
-To support multi-tenancy better we have written a new scheduler.  To enable this scheduler set.
+マルチテナントをより良くサポートするために、新しいスケジューラを作成しました。このスケジューラーセットを有効にするには、
+
 ```yaml
 storm.scheduler: "org.apache.storm.scheduler.multitenant.MultitenantScheduler"
 ```
-Be aware that many of the features of this scheduler rely on storm authentication.  Without them the scheduler will not know what the user is and will not isolate topologies properly.
+このスケジューラの機能の多くは、Stormの認証に依存していることに注意してください。それらがなければ、スケジューラーはユーザーが何であるかを知ることができませんし、トポロジを適切に分離できません。
 
-The goal of the multi-tenant scheduler is to provide a way to isolate topologies from one another, but to also limit the resources that an individual user can have in the cluster.
+マルチテナントスケジューラの目標は、トポロジそれぞれをを分離する方法を提供することですが、個々のユーザーがクラスタ内に持つことができるリソースも制限することもそうです。
 
-The scheduler currently has one config that can be set either through =storm.yaml= or through a separate config file called =multitenant-scheduler.yaml= that should be placed in the same directory as =storm.yaml=.  It is preferable to use =multitenant-scheduler.yaml= because it can be updated without needing to restart nimbus.
+スケジューラーは現在、=storm.yaml=または=storm.yaml=と同じディレクトリーに置かれる=multitenant-scheduler.yaml=という別の設定ファイルを通じて設定できる1つの構成を持っています。nimbusを再起動しなくても更新できるので、=multitenant-scheduler.yaml=を使用することをお勧めします。
 
-There is currently only one config in =multitenant-scheduler.yaml=, =multitenant.scheduler.user.pools= is a map from the user name, to the maximum number of nodes that user is guaranteed to be able to use for their topologies.
+=multitenant-scheduler.yaml=における唯一の設定である=multitenant.scheduler.user.pools=は、ユーザー名と、ユーザーがトポロジで使用できることが保証されているノードの最大数の対応付けです。
 
-For example:
+例えば:
 
 ```yaml
 multitenant.scheduler.user.pools: 
@@ -367,32 +375,32 @@ multitenant.scheduler.user.pools:
 ```
 
 ### Run worker processes as user who submitted the topology
-By default storm runs workers as the user that is running the supervisor.  This is not ideal for security.  To make storm run the topologies as the user that launched them set.
+デフォルトでは、Stormはスーパーバイザを実行しているユーザでワーカーを実行します。これはセキュリティにとって理想的ではありません。Stormにトポロジを起動したユーザがでトポロジを実行するようにするには、以下を設定します。
 
 ```yaml
 supervisor.run.worker.as.user: true
 ```
 
-There are several files that go along with this that are needed to be configured properly to make storm secure.
+上記と合わせて、Stormをセキュアにするために適切に設定する必要があるファイルがいくつかあります。
 
-The worker-launcher executable is a special program that allows the supervisor to launch workers as different users.  For this to work it needs to be owned by root, but with the group set to be a group that only teh supervisor headless user is a part of.
-It also needs to have 6550 permissions.
-There is also a worker-launcher.cfg file, usually located under /etc/ that should look something like the following
+worker-launcherの実行ファイルは、スーパーバイザが異なるユーザーでワーカーを起動できるようにする特別なプログラムです。これが動作するようにするには、そのファイルがrootによって所有されている必要がありますが、そのグループは、スーパーバイザーのヘッドレスユーザーだけが属するグループに設定されています。
+また、6550のパーミッションが必要です。
+worker-launcher.cfgファイルもあります。通常は/etc/配下にあり、以下のようになります
 
 ```
 storm.worker-launcher.group=$(worker_launcher_group)
 min.user.id=$(min_user_id)
 ```
-where worker_launcher_group is the same group the supervisor is a part of, and min.user.id is set to the first real user id on the system.
-This config file also needs to be owned by root and not have world or group write permissions.
+ここで、worker_launcher_groupはスーパーバイザーが属するグループと同じであり、min.user.idはシステム上の最初の実ユーザーIDに設定されています。
+この設定ファイルは、rootが所有し、ワールドまたはグループの書き込み権限を持たないようにする必要があります。
 
 ### Impersonating a user
-A storm client may submit requests on behalf of another user. For example, if a `userX` submits an oozie workflow and as part of workflow execution if user `oozie` wants to submit a topology on behalf of `userX`
-it can do so by leveraging the impersonation feature.In order to submit topology as some other user , you can use `StormSubmitter.submitTopologyAs` API. Alternatively you can use `NimbusClient.getConfiguredClientAs` 
-to get a nimbus client as some other user and perform any nimbus action(i.e. kill/rebalance/activate/deactivate) using this client. 
+Stormのクライアントは、別のユーザに代わってリクエストをsumbitすることがあります。例えば、`userX`がoozieワークフローをsubmitし、ワークフロー実行の一部としてユーザ`oozie`が `userX`のためにトポロジをsubmitしたい場合などです。
+偽装機能を利用することでこれが実現できます。他のユーザーとしてトポロジを送信するには、`StormSubmitter.submitTopologyAs`APIを使用できます。
+あるいは、`NimbusClient.getConfiguredClientAs`を使用して、他のユーザとしてnimbusクライアントを取得し、このクライアントを使用して任意のニンバスアクション(kill/rebalance/activate/deactivate)を実行できます。
 
-Impersonation authorization is disabled by default which means any user can perform impersonation. To ensure only authorized users can perform impersonation you should start nimbus with `nimbus.impersonation.authorizer` set to `org.apache.storm.security.auth.authorizer.ImpersonationAuthorizer`.
-The `ImpersonationAuthorizer` uses `nimbus.impersonation.acl` as the acl to authorize users. Following is a sample nimbus config for supporting impersonation:
+偽装についての認可は、デフォルトでは無効になっています。つまり、すべてのユーザーが偽装を実行できます。許可されたユーザーだけが偽装を実行できるようにするには、 `nimbus.impersonation.authorizer`を`org.apache.storm.security.auth.authorizer.ImpersonationAuthorizer`に設定してnimbusを起動する必要があります。
+`ImpersonationAuthorizer`はaclとして`nimbus.impersonation.acl`を使用してユーザーを認証します。以下に、偽装をサポートするサンプルのnimbus設定を示します:
 
 ```yaml
 nimbus.impersonation.authorizer: org.apache.storm.security.auth.authorizer.ImpersonationAuthorizer
@@ -409,7 +417,8 @@ nimbus.impersonation.acl:
             [comma separated list of groups whose users impersonating_user2 is allowed to impersonate]
 ```
 
-To support the oozie use case following config can be supplied:
+oozieユースケースをサポートするには、設定を指定する必要があります:
+
 ```yaml
 nimbus.impersonation.acl:
     oozie:
@@ -420,51 +429,53 @@ nimbus.impersonation.acl:
 ```
 
 ### Automatic Credentials Push and Renewal
-Individual topologies have the ability to push credentials (tickets and tokens) to workers so that they can access secure services.  Exposing this to all of the users can be a pain for them.
-To hide this from them in the common case plugins can be used to populate the credentials, unpack them on the other side into a java Subject, and also allow Nimbus to renew the credentials if needed.
-These are controlled by the following configs. topology.auto-credentials is a list of java plugins, all of which must implement IAutoCredentials interface, that populate the credentials on gateway 
-and unpack them on the worker side. On a kerberos secure cluster they should be set by default to point to org.apache.storm.security.auth.kerberos.AutoTGT.  
-nimbus.credential.renewers.classes should also be set to this value so that nimbus can periodically renew the TGT on behalf of the user.
+個々のトポロジには、資格情報(チケットとトークン)を安全なサービスにアクセスできるようにプッシュする機能があります。これをすべてのユーザーに公開することは、ユーザーにとって不利益になる可能性があります。
+これを一般的な状況で隠すために、プラグインを使用して資格証明を入力し、結果をJava Subjectに展開し、必要に応じてNimbusが資格情報を更新できるようにします。
+これらは以下の設定で制御されます。topology.auto-credentialsはjavaプラグインのリストであり、すべてがIAutoCredentialsインターフェースを実装しなければならず、それらはゲートウェイ上のcredentialを生成してワーカー側で解凍します。
+Kerberosによるセキュアなクラスタでは、デフォルトでorg.apache.storm.security.auth.kerberos.AutoTGTを指すように設定する必要があります。
+nimbus.credential.renewers.classesもこの値に設定して、ユーザーの代わりにnimbusが定期的にTGTを更新できるようにする必要があります。
 
-nimbus.credential.renewers.freq.secs controls how often the renewer will poll to see if anything needs to be renewed, but the default should be fine.
+nimbus.credential.renewers.freq.secsは、何か更新する必要があるかどうかを確認するために更新プログラムがポーリングする頻度を制御しますが、デフォルトでも十分機能します。
 
-In addition Nimbus itself can be used to get credentials on behalf of the user submitting topologies. This can be configures using nimbus.autocredential.plugins.classes which is a list 
-of fully qualified class names ,all of which must implement INimbusCredentialPlugin.  Nimbus will invoke the populateCredentials method of all the configured implementation as part of topology
-submission. You should use this config with topology.auto-credentials and nimbus.credential.renewers.classes so the credentials can be populated on worker side and nimbus can automatically renew
-them. Currently there are 2 examples of using this config, AutoHDFS and AutoHBase which auto populates hdfs and hbase delegation tokens for topology submitter so they don't have to distribute keytabs
-on all possible worker hosts.
+さらに、Nimbus自体を使用して、ユーザーがトポロジを送信する代わりに資格情報を取得することもできます。 これは、完全に修飾されたクラス名のリストであるnimbus.autocredential.plugins.classesを使用して設定することができます。これらはすべてINimbusCredentialPluginを実装する必要があります。 Nimbusは、構成されたすべての実装のpopulateCredentialsメソッドをトポロジの送信の一部として呼び出します。 この設定をtopology.auto-credentialsとnimbus.credential.renewers.classesとともに使用すると、資格情報をワーカー側に取り込むことができ、nimbusは自動的にそれらを更新できます。 現時点では、AutoHDFSとAutoHBaseの2つの例があります。これは、hdfsとhbaseの委譲トークンをトポロジサブミッターに自動的に取り込み、すべてのワーカーホストにkeytabを配布する必要がないようにします。
+
+さらに、Nimbus自体を使用して、ユーザーがトポロジをsubmitする代わりにcredentialを取得することもできます。
+これは、完全に修飾されたクラス名のリストであるnimbus.autocredential.plugins.classesを使用して設定することができます。これらはすべてINimbusCredentialPluginを実装する必要があります。
+Nimbusは、構成されたすべての実装のpopulateCredentialsメソッドをトポロジのsubmitする際に呼び出します。 
+この設定をtopology.auto-credentialsとnimbus.credential.renewers.classesとともに使用すると、credentialをワーカー側で取り込むことができ、nimbusは自動的にそれらを更新できます。
+現時点では、AutoHDFSとAutoHBaseの2つの例があります。これらは、hdfsとhbaseの委譲トークンをトポロジのsubmitterに自動的に取り込み、すべてのワーカーホストにkeytabを配布する必要がないようにします。
 
 ### Limits
-By default storm allows any sized topology to be submitted. But ZK and others have limitations on how big a topology can actually be.  The following configs allow you to limit the maximum size a topology can be.
+デフォルトでは、ストームはあらゆるサイズのトポロジをsumbitすることを許しています。しかし、ZKや他のコンポーネントには、トポロジーが実際にどれだけ大きなものになるかについての限界があります。次の設定では、トポロジの最大サイズを制限できます。
 
 | YAML Setting | Description |
 |------------|----------------------|
-| nimbus.slots.perTopology | The maximum number of slots/workers a topology can use. |
-| nimbus.executors.perTopology | The maximum number of executors/threads a topology can use. |
+| nimbus.slots.perTopology | トポロジが使用できるスロット/ワーカーの最大数。 |
+| nimbus.executors.perTopology | トポロジが使用できるエグゼキュータ/スレッドの最大数。 |
 
 ### Log Cleanup
-The Logviewer daemon now is also responsible for cleaning up old log files for dead topologies.
+Logviewerデーモンは、死んだトポロジが出力した古いログファイルをクリーンアップするようになりました。
 
 | YAML Setting | Description |
 |--------------|-------------------------------------|
-| logviewer.cleanup.age.mins | How old (by last modification time) must a worker's log be before that log is considered for clean-up. (Living workers' logs are never cleaned up by the logviewer: Their logs are rolled via logback.) |
-| logviewer.cleanup.interval.secs | Interval of time in seconds that the logviewer cleans up worker logs. |
+| logviewer.cleanup.age.mins | (最終更新時刻から起算して)そのログがクリーンアップされる前にワーカーのログがどのくらい古くなっていなければならないか(生きているワーカーのログは決してログビューアによってクリーンアップされません。ログはlogbackによってロールされます)。 |
+| logviewer.cleanup.interval.secs | ログビューアがワーカーログをクリーンアップする時間間隔(秒単位)。 |
 
 
 ### Allowing specific users or groups to access storm
 
- With SimpleACLAuthorizer any user with valid kerberos ticket can deploy a topology or do further operations such as activate, deactivate , access cluster information.
- One can restrict this access by specifying nimbus.users or nimbus.groups. If nimbus.users configured only the users in the list can deploy a topology or access cluster.
- Similarly nimbus.groups restrict storm cluster access to users who belong to those groups.
+ SimpleACLAuthorizerを使用すると、kerberosの有効なチケットを持つユーザーは、トポロジをデプロイ、有効化、無効化したり、クラスタ情報にアクセスするなどの操作を行うことができます。
+ nimbus.usersまたはnimbus.groupsを指定することで、このアクセスを制限することができます。nimbus.usersが設定されている場合、リスト内のユーザーのみがトポロジをデプロイしたりクラスタにアクセスできます。
+ 同様にnimbus.groupsは、それらのグループに属するユーザへのStormクラスタへのアクセスを制限します。
  
- To configure specify the following config in storm.yaml
+ 設定するにはstorm.yamlに以下の設定を指定してください
 
 ```yaml
 nimbus.users: 
    - "testuser"
 ```
 
-or 
+あるいは、
 
 ```yaml
 nimbus.groups: 
@@ -473,6 +484,6 @@ nimbus.groups:
  
 
 ### DRPC
-Hopefully more on this soon
+未記述
 
 
