@@ -2,26 +2,26 @@
 title: Using non JVM languages with Storm
 layout: documentation
 ---
-- two pieces: creating topologies and implementing spouts and bolts in other languages
-- creating topologies in another language is easy since topologies are just thrift structures (link to storm.thrift)
-- implementing spouts and bolts in another language is called a "multilang components" or "shelling"
-   - Here's a specification of the protocol: [Multilang protocol](Multilang-protocol.html)
-   - the thrift structure lets you define multilang components explicitly as a program and a script (e.g., python and the file implementing your bolt)
-   - In Java, you override ShellBolt or ShellSpout to create multilang components
-       - note that output fields declarations happens in the thrift structure, so in Java you create multilang components like the following:
-            - declare fields in java, processing code in the other language by specifying it in constructor of shellbolt
-   - multilang uses json messages over stdin/stdout to communicate with the subprocess
-   - storm comes with ruby, python, and fancy adapters that implement the protocol. show an example of python
-      - python supports emitting, anchoring, acking, and logging
-- "storm shell" command makes constructing jar and uploading to nimbus easy
-  - makes jar and uploads it
-  - calls your program with host/port of nimbus and the jarfile id
+- 2つの部分: トポロジの生成と他の言語によるSpoutとBoltの実装
+- トポロジは単にthriftの構造であるため、別の言語でトポロジを作成するのは簡単です(storm.thriftへのリンク)
+- SpoutとBoltを別の言語で実装することを"multilang components"または"shelling"といいます
+   - プロトコルの仕様は次のとおりです: [Multilang protocol](Multilang-protocol.html)
+   - thrift構造では、プログラムとスクリプト(例えば、PythonとあなたのBoltを実装するファイル)として明示的にmultilangコンポーネントを定義することができます
+   - Javaでは、ShellBoltまたはShellSpoutをオーバーライドして、multilangコンポーネントを作成します:
+       - 出力フィールド宣言はthriftの構造内で発生するので、Javaでは次のようなmultilangコンポーネントを作成します:
+            - javaのフィールドを宣言し、shellboltのコンストラクタで指定して他の言語のコードを処理する
+   - multilangはstdin/stdout上のjsonメッセージを使用してサブプロセスと通信します
+   - Stormは、Ruby、Python、およびプロトコルを実装するいい感じのアダプタが付属しています。以下がPythonの例です
+      - pythonはemit、anchor、ack、ロギングをサポートしています
+- "storm shell"コマンドを使うとjarを構築し、nimbusに簡単にアップロードできます
+  - jarをビルドし、それをアップロードする
+  - nimbusのホスト/ポートとjarファイルのIDでプログラムを呼び出します
 
 ## Notes on implementing a DSL in a non-JVM language
 
-The right place to start is src/storm.thrift. Since Storm topologies are just Thrift structures, and Nimbus is a Thrift daemon, you can create and submit topologies in any language.
+開始すべき位置はsrc/storm.thriftです。StormトポロジはThrift構造にすぎず、NimbusはThriftデーモンであるため、任意の言語でトポロジを作成してsubmitすることができます。
 
-When you create the Thrift structs for spouts and bolts, the code for the spout or bolt is specified in the ComponentObject struct:
+SpuotとBolt用のThrift構造体を作成すると、SpoutまたはBoltのコードはComponentObject構造体で指定されます:
 
 ```
 union ComponentObject {
@@ -31,21 +31,21 @@ union ComponentObject {
 }
 ```
 
-For a non-JVM DSL, you would want to make use of "2" and "3". ShellComponent lets you specify a script to run that component (e.g., your python code). And JavaObject lets you specify native java spouts and bolts for the component (and Storm will use reflection to create that spout or bolt).
+非JVM DSLの場合、"2"と"3"を使いたいと思うでしょう。ShellComponentでは、そのコンポーネント(Pythonコードなど)を実行するためのスクリプトを指定することができます。JavaObjectでは、コンポーネントのネイティブJavaスパウトとボルトを指定できます(StormはSpoutやBoltを作成するためにリフレクションを使用します)。
 
-There's a "storm shell" command that will help with submitting a topology. Its usage is like this:
+トポロジのsubmitに役立つ"storm shell"コマンドがあります。その使い方は次のとおりです:
 
 ```
 storm shell resources/ python topology.py arg1 arg2
 ```
 
-storm shell will then package resources/ into a jar, upload the jar to Nimbus, and call your topology.py script like this:
+storm shellはresources/をjarファイルにパッケージ化し、jarをNimbusにアップロードして、topology.pyスクリプトを次のように呼び出します:
 
 ```
 python topology.py arg1 arg2 {nimbus-host} {nimbus-port} {uploaded-jar-location}
 ```
 
-Then you can connect to Nimbus using the Thrift API and submit the topology, passing {uploaded-jar-location} into the submitTopology method. For reference, here's the submitTopology definition:
+次に、Thrift APIを使用してNimbusに接続し、{uploaded-jar-location}をsubmitTopologyメソッドに渡してトポロジをsubmitします。参考までにsubmitTopologyの定義を以下に示します:
 
 ```
 void submitTopology(1: string name, 2: string uploadedJarLocation, 3: string jsonConf, 4: StormTopology topology)
