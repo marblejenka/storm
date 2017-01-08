@@ -3,34 +3,34 @@ title: Serialization
 layout: documentation
 documentation: true
 ---
-This page is about how the serialization system in Storm works for versions 0.6.0 and onwards. Storm used a different serialization system prior to 0.6.0 which is documented on [Serialization (prior to 0.6.0)](Serialization-\(prior-to-0.6.0\).html). 
+このページでは、Stormのシリアライゼーションシステムがバージョン0.6.0以降でどのように動作するか説明します。Stormは、0.6.0以前では、[Serialization (prior to 0.6.0)](Serialization-\(prior-to-0.6.0\).html)に記載のある異なるシリアライゼーションシステムを使用していました。
 
-Tuples can be comprised of objects of any types. Since Storm is a distributed system, it needs to know how to serialize and deserialize objects when they're passed between tasks.
+タプルは、あらゆるタイプのオブジェクトで構成できます。Stormは分散システムなので、オブジェクトをタスク間で渡したときにそれらをシリアリライズおよびデシリアライズする方法を知る必要があります。
 
-Storm uses [Kryo](https://github.com/EsotericSoftware/kryo) for serialization. Kryo is a flexible and fast serialization library that produces small serializations.
+Stormはシリアライゼーションに[Kryo](https://github.com/EsotericSoftware/kryo)を使用しています。Kryoは、小さな結果を生成する柔軟で高速なシリアライゼーションライブラリです。
 
-By default, Storm can serialize primitive types, strings, byte arrays, ArrayList, HashMap, HashSet, and the Clojure collection types. If you want to use another type in your tuples, you'll need to register a custom serializer.
+デフォルトでは、Stormはプリミティブ型、文字列、バイト配列、ArrayList、HashMap、HashSet、およびClojureコレクション型をシリアル化できます。タプルで別の型を使用する場合は、カスタムシリアライザを登録する必要があります。
 
 ### Dynamic typing
 
-There are no type declarations for fields in a Tuple. You put objects in fields and Storm figures out the serialization dynamically. Before we get to the interface for serialization, let's spend a moment understanding why Storm's tuples are dynamically typed.
+タプルのフィールドの型宣言はありません。フィールドにオブジェクトを入れておけば、Stormは結果を動的に取り出します。シリアライゼーションのインターフェイスについて見る前に、Stormでタプルを動的型付けしている理由を理解しておきましょう。
 
-Adding static typing to tuple fields would add large amount of complexity to Storm's API. Hadoop, for example, statically types its keys and values but requires a huge amount of annotations on the part of the user. Hadoop's API is a burden to use and the "type safety" isn't worth it. Dynamic typing is simply easier to use.
+タプルフィールドを静的型付けとすると、StormのAPIには多大な複雑さが加わります。たとえば、Hadoopはキーやバリューを静的に型付けしますが、ユーザー側で膨大な量のアノテーションを必要とします。HadoopのAPIは使用する負担であり、"型安全であること"には価値がありません。動的型付けはシンプルで使い方が簡単です。
 
-Further than that, it's not possible to statically type Storm's tuples in any reasonable way. Suppose a Bolt subscribes to multiple streams. The tuples from all those streams may have different types across the fields. When a Bolt receives a `Tuple` in `execute`, that tuple could have come from any stream and so could have any combination of types. There might be some reflection magic you can do to declare a different method for every tuple stream a bolt subscribes to, but Storm opts for the simpler, straightforward approach of dynamic typing.
+それより、Stormのタプルを任意の方法で静的に型付けすることはできません。Boltが複数のストリームをサブスクライブしているとします。これらすべてのストリームのタプルは、フィールド間で異なるタイプを持つことがあります。Boltが`execute`で`Tuple`を受け取る際に、そのタプルはどんなストリームから来ていてもかまわないので、いろいろな型の組み合わせを持っている可能性があります。Boltがサブスクライブするすべてのタプルストリームに対して異なるメソッドを宣言できるreflection的な魔法があるかもしれませんが、Stormは動的型付けによる単純で直接的なアプローチを選択しています。
 
-Finally, another reason for using dynamic typing is so Storm can be used in a straightforward manner from dynamically typed languages like Clojure and JRuby.
+最後に、動的型付けを使用するもう一つの理由は、ClojureやJRubyのような動的型付けを行う言語からStormを簡単に使用できることです。
 
 ### Custom serialization
 
-As mentioned, Storm uses Kryo for serialization. To implement custom serializers, you need to register new serializers with Kryo. It's highly recommended that you read over [Kryo's home page](https://github.com/EsotericSoftware/kryo) to understand how it handles custom serialization.
+前述のように、StormはシリアライゼーションにKryoを使用します。カスタムシリアライザを実装するには、新しいシリアライザをKryoに登録する必要があります。カスタムシリアライゼーションをどのように処理するかについて理解するために、[Kryoのホームページ](https://github.com/EsotericSoftware/kryo)を読むことを強く推奨します。
 
-Adding custom serializers is done through the "topology.kryo.register" property in your topology config. It takes a list of registrations, where each registration can take one of two forms:
+カスタムシリアライザの追加は、トポロジ設定の"topology.kryo.register"プロパティで行います。プロパティは登録対象ののリストを取り、次の2つの形式のいずれかを取ることができます:
 
-1. The name of a class to register. In this case, Storm will use Kryo's `FieldsSerializer` to serialize the class. This may or may not be optimal for the class -- see the Kryo docs for more details.
-2. A map from the name of a class to register to an implementation of [com.esotericsoftware.kryo.Serializer](https://github.com/EsotericSoftware/kryo/blob/master/src/com/esotericsoftware/kryo/Serializer.java).
+1. クラス名による登録。この場合、StormはKryoの`FieldsSerializer`を使ってクラスをシリアライズします。これはクラスにとって最適かもしれないし、そうでないかもしれません -- 詳細についてはKryoのドキュメントを見てください。
+2. 登録するクラス名と[com.esotericsoftware.kryo.Serializer](https://github.com/EsotericSoftware/kryo/blob/master/src/com/esotericsoftware/kryo/Serializer.java)の実装の対応付け
 
-Let's look at an example.
+例を見てみましょう。
 
 ```
 topology.kryo.register:
@@ -39,24 +39,25 @@ topology.kryo.register:
   - com.mycompany.CustomType3
 ```
 
-`com.mycompany.CustomType1` and `com.mycompany.CustomType3` will use the `FieldsSerializer`, whereas `com.mycompany.CustomType2` will use `com.mycompany.serializer.CustomType2Serializer` for serialization.
+`com.mycompany.CustomType1`と`com.mycompany.CustomType3`は`FieldsSerializer`を使いますが、`com.mycompany.CustomType2`は `com.mycompany.serializer.CustomType2Serializer`を使ってシリアライゼーションします。
 
-Storm provides helpers for registering serializers in a topology config. The [Config](javadocs/org/apache/storm/Config.html) class has a method called `registerSerialization` that takes in a registration to add to the config.
+Stormは、シリアライザをトポロジ設定に登録するためのヘルパーを提供します。[Config](javadocs/org/apache/storm/Config.html)クラスには、registerSerializationというメソッドがあり、これを使用してレジストリを設定に追加します。
 
-There's an advanced config called `Config.TOPOLOGY_SKIP_MISSING_KRYO_REGISTRATIONS`. If you set this to true, Storm will ignore any serializations that are registered but do not have their code available on the classpath. Otherwise, Storm will throw errors when it can't find a serialization. This is useful if you run many topologies on a cluster that each have different serializations, but you want to declare all the serializations across all topologies in the `storm.yaml` files.
+`Config.TOPOLOGY_SKIP_MISSING_KRYO_REGISTRATIONS`という高度な設定があります。これをtrueに設定すると、Stormは登録されているクラスパス上でコードを利用できないシリアライザは無視されます。それ以外の場合、Stormはシリアライザが見つからない場合にエラーをスローします。これは、クラスタ上で異なるシリアライゼーションを持つ多数のトポロジを実行するが、 `storm.yaml`ファイル内ですべてのトポロジについてのすべてのシリアライゼーションを宣言したい場合に便利です。
 
 ### Java serialization
 
-If Storm encounters a type for which it doesn't have a serialization registered, it will use Java serialization if possible. If the object can't be serialized with Java serialization, then Storm will throw an error.
+Stormがシリアライザが登録されていない型に遭遇した場合、可能であればJavaのシリアライゼーションを使用します。Javaのシリアライゼーションでオブジェクトをシリアライズできない場合、Stormはエラーをスローします。
 
-Beware that Java serialization is extremely expensive, both in terms of CPU cost as well as the size of the serialized object. It is highly recommended that you register custom serializers when you put the topology in production. The Java serialization behavior is there so that it's easy to prototype new topologies.
+Javaのシリアライゼーションは、CPUコストとシリアライズされたオブジェクトのサイズの両面で非常に重いことに注意してください。トポロジをプロダクション環境に置くときは、カスタムシリアライザを登録することを強くお勧めします。Javaのシリアライゼーションを使えるようにしているのは、新しいトポロジのプロトタイプ作成を容易にするためです。
 
-You can turn off the behavior to fall back on Java serialization by setting the `Config.TOPOLOGY_FALL_BACK_ON_JAVA_SERIALIZATION` config to false.
+`Config.TOPOLOGY_FALL_BACK_ON_JAVA_SERIALIZATION`設定をfalseに設定することによって、Javaのシリアライゼーションにフォールバックする動作をオフにすることができます。
 
 ### Component-specific serialization registrations
 
-Storm 0.7.0 lets you set component-specific configurations (read more about this at [Configuration](Configuration.html)). Of course, if one component defines a serialization that serialization will need to be available to other bolts -- otherwise they won't be able to receive messages from that component!
+Storm 0.7.0では、コンポーネント固有の設定を行うことができます(詳細については、[Configuration](Configuration.html)を参照してください)。
+もちろん、あるコンポーネントが定義しているシリアライゼーションは、他のBoltでも使えるようになります -- そうしないと、そのコンポーネントからのメッセージを受信できなくなります!
 
-When a topology is submitted, a single set of serializations is chosen to be used by all components in the topology for sending messages. This is done by merging the component-specific serializer registrations with the regular set of serialization registrations. If two components define serializers for the same class, one of the serializers is chosen arbitrarily.
+トポロジがsubmitされると、トポロジ内のすべてのコンポーネントがメッセージを送信するために使用されるシリアライゼーションの集合が選択されます。これは、コンポーネント固有のシリアライザのレジストリと、通常のシリアライザのセットをマージすることによって行われます。2つのコンポーネントが同じクラスのシリアライザを定義する場合、シリアライザの1つが任意に選択されます。
 
-To force a serializer for a particular class if there's a conflict between two component-specific registrations, just define the serializer you want to use in the topology-specific configuration. The topology-specific configuration has precedence over component-specific configurations for serialization registrations.
+2つのコンポーネント固有のレジストリの間に競合がある場合に特定のクラスに対してシリアライザを強制するには、使用したいシリアライザをトポロジ固有の設定として定義します。トポロジ固有の設定は、シリアライゼーションレジストリに関するのコンポーネント固有の構成よりも優先されます。

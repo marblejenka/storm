@@ -1,27 +1,27 @@
 ---
 layout: documentation
 ---
-Tuples can be comprised of objects of any types. Since Storm is a distributed system, it needs to know how to serialize and deserialize objects when they're passed between tasks. By default Storm can serialize ints, shorts, longs, floats, doubles, bools, bytes, strings, and byte arrays, but if you want to use another type in your tuples, you'll need to implement a custom serializer.
+タプルは、あらゆるタイプのオブジェクトで構成できます。Stormは分散システムなので、オブジェクトをタスク間で渡したときにそれらをシリアリライズおよびデシリアライズする方法を知る必要があります。デフォルトでは、Stormはプリミティブ型、文字列、バイト配列、ArrayList、HashMap、HashSet、およびClojureコレクション型をシリアル化できます。タプルで別の型を使用する場合は、カスタムシリアライザを登録する必要があります。
 
 ### Dynamic typing
 
-There are no type declarations for fields in a Tuple. You put objects in fields and Storm figures out the serialization dynamically. Before we get to the interface for serialization, let's spend a moment understanding why Storm's tuples are dynamically typed.
+タプルのフィールドの型宣言はありません。フィールドにオブジェクトを入れておけば、Stormは結果を動的に取り出します。シリアライゼーションのインターフェイスについて見る前に、Stormでタプルを動的型付けしている理由を理解しておきましょう。
 
-Adding static typing to tuple fields would add large amount of complexity to Storm's API. Hadoop, for example, statically types its keys and values but requires a huge amount of annotations on the part of the user. Hadoop's API is a burden to use and the "type safety" isn't worth it. Dynamic typing is simply easier to use.
+タプルフィールドを静的型付けとすると、StormのAPIには多大な複雑さが加わります。たとえば、Hadoopはキーやバリューを静的に型付けしますが、ユーザー側で膨大な量のアノテーションを必要とします。HadoopのAPIは使用する負担であり、"型安全であること"には価値がありません。動的型付けはシンプルで使い方が簡単です。
 
-Further than that, it's not possible to statically type Storm's tuples in any reasonable way. Suppose a Bolt subscribes to multiple streams. The tuples from all those streams may have different types across the fields. When a Bolt receives a `Tuple` in `execute`, that tuple could have come from any stream and so could have any combination of types. There might be some reflection magic you can do to declare a different method for every tuple stream a bolt subscribes to, but Storm opts for the simpler, straightforward approach of dynamic typing.
+それより、Stormのタプルを任意の方法で静的に型付けすることはできません。Boltが複数のストリームをサブスクライブしているとします。これらすべてのストリームのタプルは、フィールド間で異なるタイプを持つことがあります。Boltが`execute`で`Tuple`を受け取る際に、そのタプルはどんなストリームから来ていてもかまわないので、いろいろな型の組み合わせを持っている可能性があります。Boltがサブスクライブするすべてのタプルストリームに対して異なるメソッドを宣言できるreflection的な魔法があるかもしれませんが、Stormは動的型付けによる単純で直接的なアプローチを選択しています。
 
-Finally, another reason for using dynamic typing is so Storm can be used in a straightforward manner from dynamically typed languages like Clojure and JRuby.
+最後に、動的型付けを使用するもう一つの理由は、ClojureやJRubyのような動的型付けを行う言語からStormを簡単に使用できることです。
 
 ### Custom serialization
 
-Let's dive into Storm's API for defining custom serializations. There are two steps you need to take as a user to create a custom serialization: implement the serializer, and register the serializer to Storm.
+Stormのカスタムシリアライゼーションを定義するためのAPIを紹介しましょう。カスタムシリアライゼーションを作成するには、シリアライザを実装し、シリアライザをStormに登録する2つのステップが必要です。
 
 #### Creating a serializer
 
-Custom serializers implement the [ISerialization](javadocs/backtype/storm/serialization/ISerialization.html) interface. Implementations specify how to serialize and deserialize types into a binary format.
+カスタムシリアライザは、[ISerialization](javadocs/backtype/storm/serialization/ISerialization.html)インタフェースを実装しています。実装では、型をバイナリ形式にシリアライズする方法およびデシリアライズする方法を指定します。
 
-The interface looks like this:
+インターフェイスは次のようになります:
 
 ```java
 public interface ISerialization<T> {
@@ -31,20 +31,23 @@ public interface ISerialization<T> {
 }
 ```
 
-Storm uses the `accept` method to determine if a type can be serialized by this serializer. Remember, Storm's tuples are dynamically typed so Storm determines what serializer to use at runtime.
+Stormは、このシリアライザでタイプをシリアライズできるかどうかを判断するために`accept`メソッドを使います。Stormのタプルは動的に型指定されるため、Stormは実行時にどのシリアライザを使用するかを決定します。
 
-`serialize` writes the object out to the output stream in binary format. The field must be written in a way such that it can be deserialized later. For example, if you're writing out a list of objects, you'll need to write out the size of the list first so that you know how many elements to deserialize.
+`serialize`はオブジェクトをバイナリ形式で出力ストリームに書き出します。フィールドは、後でデシリアライズできるような方法で記述する必要があります。たとえば、オブジェクトのリストを書き出す場合は、リストのサイズを最初に書き出して、デシリアライズする要素の数を知る必要があります。
 
+`deserialize`は直列化されたオブジェクトをストリームから読み込んで返します。
 `deserialize` reads the serialized object off of the stream and returns it.
 
-You can see example serialization implementations in the source for [SerializationFactory](https://github.com/apache/incubator-storm/blob/0.5.4/src/jvm/backtype/storm/serialization/SerializationFactory.java)
+[SerializationFactory](https://github.com/apache/incubator-storm/blob/0.5.4/src/jvm/backtype/storm/serialization/SerializationFactory.java)のソースで、シリアライズ実装の例を見ることができます。
+
 
 #### Registering a serializer
 
-Once you create a serializer, you need to tell Storm it exists. This is done through the Storm configuration (See [Concepts](Concepts.html) for information about how configuration works in Storm). You can register serializations either through the config given when submitting a topology or in the storm.yaml files across your cluster.
+シリアライザを作成したら、Stormにそれが存在していることを伝える必要があります。これはStormの設定によって行われます(Stormでの設定の仕組みについては、[Concepts](Concepts.html)を参照してください)。シリアライズを登録するには、トポロジをsubmitするときに指定した設定か、クラスタ全体のstorm.yamlファイルを使用します。
 
-Serializer registrations are done through the Config.TOPOLOGY_SERIALIZATIONS config and is simply a list of serialization class names.
+シリアライザの登録は、Config.TOPOLOGY_SERIALIZATIONS設定を介して行われ、それは単なるシリアライゼーションクラス名のリストです。
 
-Storm provides helpers for registering serializers in a topology config. The [Config](javadocs/backtype/storm/Config.html) class has a method called `addSerialization` that takes in a serializer class to add to the config.
+Stormは、シリアライザをトポロジ設定に登録するためのヘルパーを提供します。[Config](javadocs/backtype/storm/Config.html)クラスには、`addSerialization`というメソッドがあり、シリアライザのクラスをconfigに追加します。
 
-There's an advanced config called Config.TOPOLOGY_SKIP_MISSING_SERIALIZATIONS. If you set this to true, Storm will ignore any serializations that are registered but do not have their code available on the classpath. Otherwise, Storm will throw errors when it can't find a serialization. This is useful if you run many topologies on a cluster that each have different serializations, but you want to declare all the serializations across all topologies in the `storm.yaml` files.
+Config.TOPOLOGY_SKIP_MISSING_SERIALIZATIONSという高度な設定があります。これをtrueに設定すると、Stormは登録されているクラスパス上でコードを利用できないシリアライザは無視されます。それ以外の場合、Stormはシリアライザが見つからない場合にエラーをスローします。これは、クラスタ上で異なるシリアライゼーションを持つ多数のトポロジを実行するが、 `storm.yaml`ファイル内ですべてのトポロジについてのすべてのシリアライゼーションを宣言したい場合に便利です。
+
