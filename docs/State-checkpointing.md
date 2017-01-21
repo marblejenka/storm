@@ -4,23 +4,23 @@ layout: documentation
 documentation: true
 ---
 # State support in core storm
-Storm core has abstractions for bolts to save and retrieve the state of its operations. There is a default in-memory
-based state implementation and also a Redis backed implementation that provides state persistence.
+Storm coreには、操作の状態を保存して取得するためのBoltの抽象があります。
+デフォルトのインメモリベースの状態実装と、状態の永続性を提供するRedisバックアップ実装があります。
 
 ## State management
-Bolts that requires its state to be managed and persisted by the framework should implement the `IStatefulBolt` interface or
-extend the `BaseStatefulBolt` and implement `void initState(T state)` method. The `initState` method is invoked by the framework
-during the bolt initialization with the previously saved state of the bolt. This is invoked after prepare but before the bolt starts
-processing any tuples.
+フレームワークによってその状態を管理・永続化する必要のあるBoltは、
+`IStatefulBolt`インタフェースを実装するか、`BaseStatefulBolt`を継承し、`void initState(T state)`メソッドを実装する必要があります。
+`initState`メソッドは、以前に保存されたBoltの状態にするため、Boltの初期化中にフレームワークによって呼び出されます。
+これは、prepareが完了した後で、Boltがタプルの処理を開始する前に、呼び出されます。
 
-Currently the only kind of `State` implementation that is supported is `KeyValueState` which provides key-value mapping.
+現在サポートされている`State`実装の唯一の種類は、Key-Valueマッピングを提供する`KeyValueState`です
 
-For example a word count bolt could use the key value state abstraction for the word counts as follows.
+例えば、ワードカウントを行うBoltは、以下のように、単語のカウントに対してキー値の状態抽象化を使用することができます。
 
-1. Extend the BaseStatefulBolt and type parameterize it with KeyValueState which would store the mapping of word to count.
-2. The bolt gets initialized with its previously saved state in the init method. This will contain the word counts
-last committed by the framework during the previous run.
-3. In the execute method, update the word count.
+1. BaseStatefulBoltを拡張し、型パラメーターとして単語とカウントのマッピングを格納するKeyValueStateを指定します。
+2. Boltはinitメソッドで以前に保存された状態で初期化されます。
+これには前回実行時にフレームワークによって最後にコミットされた単語数が含まれます。
+3. executeメソッドで単語数を更新します。
 
  ```java
  public class WordCountBolt extends BaseStatefulBolt<KeyValueState<String, Long>> {
@@ -47,14 +47,11 @@ last committed by the framework during the previous run.
  ...
  }
  ```
-4. The framework periodically checkpoints the state of the bolt (default every second). The frequency
-can be changed by setting the storm config `topology.state.checkpoint.interval.ms`
-5. For state persistence, use a state provider that supports persistence by setting the `topology.state.provider` in the
-storm config. E.g. for using Redis based key-value state implementation set `topology.state.provider: org.apache.storm.redis.state.RedisKeyValueStateProvider`
-in storm.yaml. The provider implementation jar should be in the class path, which in this case means putting the `storm-redis-*.jar`
-in the extlib directory.
-6. The state provider properties can be overridden by setting `topology.state.provider.config`. For Redis state this is a
-json config with the following properties.
+4. フレームワークは、Boltの状態を定期的にチェックポイントします（デフォルトは毎秒）。Stormの設定 `topology.state.checkpoint.interval.ms`を設定することで頻度を変更することができます
+5. 状態の永続性を維持するには、Stormの設定で`topology.state.provider`を設定して永続性をサポートする状態プロバイダを使用します。
+例えば、Redisベースのキーとバリューについての状態の実装を使用するには、storm.yamlで`topology.state.provider：org.apache.storm.redis.state.RedisKeyValueStateProvider`を設定します。
+プロバイダ実装のjarはクラスパスになければなりません。この場合、`storm-redis-*.jar`をextlibディレクトリに置くことを意味します。
+6. 状態プロバイダのプロパティは、`topology.state.provider.config`を設定することで上書きできます。Redisのステートでは、これは以下のプロパティを持つjson設定です。
 
  ```
  {
@@ -73,12 +70,11 @@ json config with the following properties.
  ```
 
 ## Checkpoint mechanism
-Checkpoint is triggered by an internal checkpoint spout at the specified `topology.state.checkpoint.interval.ms`. If there is
-at-least one `IStatefulBolt` in the topology, the checkpoint spout is automatically added by the topology builder . For stateful topologies,
-the topology builder wraps the `IStatefulBolt` in a `StatefulBoltExecutor` which handles the state commits on receiving the checkpoint tuples.
-The non stateful bolts are wrapped in a `CheckpointTupleForwarder` which just forwards the checkpoint tuples so that the checkpoint tuples
-can flow through the topology DAG. The checkpoint tuples flow through a separate internal stream namely `$checkpoint`. The topology builder
-wires the checkpoint stream across the whole topology with the checkpoint spout at the root.
+チェックポイントは、指定された`topology.state.checkpoint.interval.ms`で、内部チェックポイントSpoutによってトリガされます。
+トポロジ内に少なくとも1つの`IStatefulBolt`がある場合、チェックポイントSpoutはトポロジビルダーによって自動的に追加されます。
+ステートフルトポロジーの場合、トポロジービルダーは、チェックポイントタプルの受信時に状態をコミットする`StatefulBoltExecutor`に`IStatefulBolt`をラップします。
+非ステートフルボルトは、チェックポイントタプルがトポロジのDAGを流れることができるように、チェックポイントタプルを単に転送する`CheckpointTupleForwarder`でラップされます。
+チェックポイントタプルは別の内部ストリーム、すなわち`$checkpoint`を通って流れます。トポロジ・ビルダーは、チェックポイント・ストリームをトポロジ全体に結線し、ルートにチェックポイント・スパウトを配置します。
 
 ```
               default                         default               default
@@ -89,40 +85,39 @@ wires the checkpoint stream across the whole topology with the checkpoint spout 
 [$checkpointspout] _______| ($chpt)
 ```
 
-At checkpoint intervals the checkpoint tuples are emitted by the checkpoint spout. On receiving a checkpoint tuple, the state of the bolt
-is saved and then the checkpoint tuple is forwarded to the next component. Each bolt waits for the checkpoint to arrive on all its input
-streams before it saves its state so that the state represents a consistent state across the topology. Once the checkpoint spout receives
-ACK from all the bolts, the state commit is complete and the transaction is recorded as committed by the checkpoint spout.
+チェックポイント間隔で、チェックポイントタプルはチェックポイントSpoutによって放出されます。チェックポイントタプルを受け取ると、Boltの状態が保存され、チェックポイントタプルが次のコンポーネントに転送されます。
+各Boltは、状態が保存される前にすべての入力ストリームにチェックポイントが到着するのを待って、状態がトポロジ全体で一貫した状態を表すようにしています。
+チェックポイントSpoutがすべてのBoltからackを受信すると、状態のコミットは完了し、トランザクションはチェックポイントSpoutによってコミットされたものとして記録されます。
 
-The state checkpointing does not currently checkpoint the state of the spout. Yet, once the state of all bolts are checkpointed, and once the checkpoint tuples are acked, the tuples emitted by the spout are also acked. 
-It also implies that `topology.state.checkpoint.interval.ms` is lower than `topology.message.timeout.secs`. 
+状態チェックポイントは現在、Spoutの状態をチェックポイントしていません。しかし、いったんすべてのBoltの状態がチェックポイントされ、チェックポイントタプルがackされると、Spoutからemitされたタプルもackされます。また、`topology.state.checkpoint.interval.ms`は`topology.message.timeout.secs`よりも低いことを想定します。
 
-The state commit works like a three phase commit protocol with a prepare and commit phase so that the state across the topology is saved
-in a consistent and atomic manner.
+状態のコミットは、トポロジ全体の状態が一貫したアトミックな方法で保存されるように、
+prepareフェーズとcommitフェーズを用いた3フェーズコミットプロトコルのように機能します。
 
 ### Recovery
-The recovery phase is triggered when the topology is started for the first time. If the previous transaction was not successfully
-prepared, a `rollback` message is sent across the topology so that if a bolt has some prepared transactions it can be discarded.
-If the previous transaction was prepared successfully but not committed, a `commit` message is sent across the topology so that
-the prepared transactions can be committed. After these steps are complete, the bolts are initialized with the state.
+リカバリフェーズは、トポロジが初めて開始されたときにトリガされます。前のトランザクションが正常にprepareされなかった場合、
+トポロジ全体に`rollback`メッセージが送信され、Boltにprepareなトランザクションがあれば破棄することができます。
+前のトランザクションが正常にprepareされたがコミットされていない場合、prepareされたトランザクションをコミットできるように、
+トポロジー全体に渡って`commit`メッセージが送信されます。これらのステップが完了すると、Boltはステートによって初期化されます。
 
-The recovery is also triggered if one of the bolts fails to acknowledge the checkpoint message or say a worker crashed in
-the middle. Thus when the worker is restarted by the supervisor, the checkpoint mechanism makes sure that the bolt gets
-initialized with its previous state and the checkpointing continues from the point where it left off.
+Boltの1つがチェックポイントメッセージを確認できなかったり、ワーカーが途中でクラッシュしたりすると、リカバリがトリガーされます。
+したがって、スーパバイザによってワーカーが再起動されると、チェックポイント機構はBoltを以前の状態で初期化し、
+以前のチェックポイントの時点から再開されるようにします。
 
 ### Guarantee
-Storm relies on the acking mechanism to replay tuples in case of failures. It is possible that the state is committed
-but the worker crashes before acking the tuples. In this case the tuples are replayed causing duplicate state updates.
-Also currently the StatefulBoltExecutor continues to process the tuples from a stream after it has received a checkpoint
-tuple on one stream while waiting for checkpoint to arrive on other input streams for saving the state. This can also cause
-duplicate state updates during recovery.
+Stormは、障害時にタプルをリプレイするackingメカニズムに依存しています 状態はコミットされている可能性がありますが、タプルをackする前にワーカーがクラッシュしてしまう可能性があります。
+この場合、タプルがリプレイされ、重複した状態の更新が発生します。
+現在、StatefulBoltExecutorは、状態を保存するためにチェックポイントが他の入力ストリームに到着するのを待っている間に、
+ストリームからチェックポイントタプルを受け取った後、タプルをストリームから処理し続けます。
+これにより、リカバリ中に状態の更新が重複する可能性もあります。
 
-The state abstraction does not eliminate duplicate evaluations and currently provides only at-least once guarantee.
+状態の抽象化は重複した評価を排除するものではなく、現在ではat-least onceの保証しか提供していません。
 
-In order to provide the at-least once guarantee, all bolts in a stateful topology are expected to anchor the tuples while emitting and ack the input tuples once its processed. For non-stateful bolts, the anchoring/acking can be automatically managed by extending the `BaseBasicBolt`. Stateful bolts are expected to anchor tuples while emitting and ack the tuple after processing like in the `WordCountBolt` example in the State management section above.
+ステートフルトポロジ内のすべてのBoltは、at-least onceの保証を提供するために、タプルをanchorするとともに入力タプルを処理した後にそのタプルをackすることが期待されます。非ステートフルボルトの場合、anchoring/ackingは`BaseBasicBolt`を拡張することによって自動的に管理できます。ステートフルボルトは、上記の状態管理セクションの`WordCountBolt`の例のように処理した後にタプルをanchorし、タプルをackすることが期待されます。
 
 ### IStateful bolt hooks
-IStateful bolt interface provides hook methods where in the stateful bolts could implement some custom actions.
+IStateful Boltインターフェイスは、ステートフルボルトでカスタムアクションを実装できるフックメソッドを提供します。
+
 ```java
     /**
      * This is a hook for the component to perform some actions just before the
@@ -142,22 +137,19 @@ IStateful bolt interface provides hook methods where in the stateful bolts could
      */
     void preRollback();
 ```
-This is optional and stateful bolts are not expected to provide any implementation. This is provided so that other
-system level components can be built on top of the stateful abstractions where we might want to take some actions before the
-stateful bolt's state is prepared, committed or rolled back.
+これはオプションであり、ステートフルボルトは実装を提供するものではありません。
+これは、ステートフルなBoltの状態がprepareされ、コミットまたはロールバックされる前にいくつかのアクションをとることが必要であるような、
+ステートフルな抽象化の上に他のシステムレベルのコンポーネントを構築できるように提供されています。
 
 ## Providing custom state implementations
-Currently the only kind of `State` implementation supported is `KeyValueState` which provides key-value mapping.
+現在サポートされている唯一の`State`実装は、Key-Valueマッピングを提供する`KeyValueState`です。
 
-Custom state implementations should provide implementations for the methods defined in the `org.apache.storm.State` interface.
-These are the `void prepareCommit(long txid)`, `void commit(long txid)`, `rollback()` methods. `commit()` method is optional
-and is useful if the bolt manages the state on its own. This is currently used only by the internal system bolts,
-for e.g. the CheckpointSpout to save its state.
+カスタムの状態の実装は`org.apache.storm.State`インタフェースで定義されたメソッドの実装を提供する必要があります。
+それは`void prepareCommit(long txid)`, `void commit(long txid)`, `rollback()`メソッドです。`commit()`メソッドはオプションで、Boltが単独で状態を管理する場合に便利です。
+これは、現在、例えば内部システムボルトによってのみ使用されています。例えば、CheckpointSpoutは状態を保存します。
 
-`KeyValueState` implementation should also implement the methods defined in the `org.apache.storm.state.KeyValueState` interface.
+`KeyValueState`の実装は`org.apache.storm.state.KeyValueState`インタフェースで定義されたメソッドも実装する必要があります。
 
 ### State provider
-The framework instantiates the state via the corresponding `StateProvider` implementation. A custom state should also provide
-a `StateProvider` implementation which can load and return the state based on the namespace. Each state belongs to a unique namespace.
-The namespace is typically unique per task so that each task can have its own state. The StateProvider and the corresponding
-State implementation should be available in the class path of Storm (by placing them in the extlib directory).
+フレームワークは、対応する`StateProvider`実装を介して状態をインスタンス化します。カスタムの状態は、名前空間に基づいて状態をロードして返すことができる `StateProvider`実装も提供する必要があります。各状態は一意の名前空間に属します。
+名前空間は、通常、タスクごとに一意であるため、各タスクは独自の状態を持つことができます。StateProviderと対応するStateの実装は、Stormのクラスパスで利用できるようにする必要があります（extlibディレクトリに配置するなどして）。
