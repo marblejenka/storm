@@ -3,34 +3,34 @@ title: Distributed RPC
 layout: documentation
 documentation: true
 ---
-The idea behind distributed RPC (DRPC) is to parallelize the computation of really intense functions on the fly using Storm. The Storm topology takes in as input a stream of function arguments, and it emits an output stream of the results for each of those function calls. 
+分散RPC(DRPC)の背後にあるアイデアは、Stormを使用して実際に強力な関数の計算を並列で並列化することです。Stormのトポロジは、関数の引数をストリームの入力として取り込み、それらの関数呼び出しのそれぞれの結果についての出力ストリームをemitします。
 
-DRPC is not so much a feature of Storm as it is a pattern expressed from Storm's primitives of streams, spouts, bolts, and topologies. DRPC could have been packaged as a separate library from Storm, but it's so useful that it's bundled with Storm.
+DRPCはそれほどStormの機能らしい機能ではありません。Stormのストリーム、Spout、Bolt、トポロジなどのプリミティブによって表現されるパターンです。DRPCはStormとは別のライブラリとしてパッケージ化されていたかもしれませんが、Stormにバンドルされているのでとても便利です。
 
 ### High level overview
 
-Distributed RPC is coordinated by a "DRPC server" (Storm comes packaged with an implementation of this). The DRPC server coordinates receiving an RPC request, sending the request to the Storm topology, receiving the results from the Storm topology, and sending the results back to the waiting client. From a client's perspective, a distributed RPC call looks just like a regular RPC call. For example, here's how a client would compute the results for the "reach" function with the argument "http://twitter.com":
+分散RPCは"DRPCサーバー"によって調整されます(Stormにはこの実装がパッケージ化されています)。DRPCサーバーは、RPC要求の受信、Stormトポロジへの要求の送信、Stormトポロジからの結果の受信、および結果を待機中のクライアントに返すことなどを調整します。クライアントから見ると、分散RPC呼び出しは通常のRPC呼び出しと同じように見えます。たとえば、クライアントが引数 "http://twitter.com" を使用して "reach" 関数の結果を計算する方法は次のとおりです。
 
 ```java
 DRPCClient client = new DRPCClient("drpc-host", 3772);
 String result = client.execute("reach", "http://twitter.com");
 ```
 
-The distributed RPC workflow looks like this:
+分散RPCのワークフローは次のようになります:
 
 ![Tasks in a topology](images/drpc-workflow.png)
 
-A client sends the DRPC server the name of the function to execute and the arguments to that function. The topology implementing that function uses a `DRPCSpout` to receive a function invocation stream from the DRPC server. Each function invocation is tagged with a unique id by the DRPC server. The topology then computes the result and at the end of the topology a bolt called `ReturnResults` connects to the DRPC server and gives it the result for the function invocation id. The DRPC server then uses the id to match up that result with which client is waiting, unblocks the waiting client, and sends it the result.
+クライアントは、実行する関数の名前とその関数の引数をDRPCサーバーに送信します。その機能を実装するトポロジは、DRPCサーバからの関数呼び出しのストリームを受信するために`DRPCSpout`を使用します。各関数の呼び出しは、DRPCサーバーによって一意のIDでタグ付けされます。次に、トポロジは結果を計算し、トポロジの最後で`ReturnResults`と呼ばれるBoltがDRPCサーバに接続し、それに関数呼び出しのIDに対する結果を与えます。DRPCサーバーはそのIDを使用して、結果を待機しているクライアントを照合し、その待機中のクライアントのブロックを解除し、結果を送信します。
 
 ### LinearDRPCTopologyBuilder
 
-Storm comes with a topology builder called [LinearDRPCTopologyBuilder](javadocs/org/apache/storm/drpc/LinearDRPCTopologyBuilder.html) that automates almost all the steps involved for doing DRPC. These include:
+Stormには、[LinearDRPCTopologyBuilder](javadocs/org/apache/storm/drpc/LinearDRPCTopologyBuilder.html)というtopology builderが付属しており、DRPCを実行するためのほとんどすべてのステップを自動化します。これらには以下のものが含まれます:
 
-1. Setting up the spout
-2. Returning the results to the DRPC server
-3. Providing functionality to bolts for doing finite aggregations over groups of tuples
+1. Spoutのセットアップ
+2. 結果をDRPCサーバーに戻す
+3. タプルのグループに対して有限の集約を行うためのボルトへの機能の提供
 
-Let's look at a simple example. Here's the implementation of a DRPC topology that returns its input argument with a "!" appended:
+簡単な例を見てみましょう。以下は、入力引数に"！"をつけて返すDRPCトポロジの実装です:
 
 ```java
 public static class ExclaimBolt extends BaseBasicBolt {
@@ -51,13 +51,13 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-As you can see, there's very little to it. When creating the `LinearDRPCTopologyBuilder`, you tell it the name of the DRPC function for the topology. A single DRPC server can coordinate many functions, and the function name distinguishes the functions from one another. The first bolt you declare will take in as input 2-tuples, where the first field is the request id and the second field is the arguments for that request. `LinearDRPCTopologyBuilder` expects the last bolt to emit an output stream containing 2-tuples of the form [id, result]. Finally, all intermediate tuples must contain the request id as the first field.
+見ての通り、やらないといけないことはほとんどありません。`LinearDRPCTopologyBuilder`を作成するときは、トポロジのDRPC関数の名前を指定します。1つのDRPCサーバーで多くの関数を扱うことができ、関数名で関数を互いに区別します。宣言した最初のBoltは入力として対のタプルをとります。最初のフィールドは要求IDで、2番目のフィールドはその要求の引数です。`LinearDRPCTopologyBuilder`は最後のBoltが[id、result]という形式の対のタプルを含む出力ストリームを出力することを期待しています。最後に、すべての中間タプルには、最初のフィールドとして要求IDが含まれていなければなりません。
 
-In this example, `ExclaimBolt` simply appends a "!" to the second field of the tuple. `LinearDRPCTopologyBuilder` handles the rest of the coordination of connecting to the DRPC server and sending results back.
+この例では、`ExclaimBolt`は単にタプルの2番目のフィールドに"！"を付けて渡します。`LinearDRPCTopologyBuilder`は、DRPCサーバに接続して結果を返す調整の残りの部分を処理します。
 
 ### Local mode DRPC
 
-DRPC can be run in local mode. Here's how to run the above example in local mode:
+DRPCはローカルモードで実行できます。上記の例をローカルモードで実行する方法は次のとおりです:
 
 ```java
 LocalDRPC drpc = new LocalDRPC();
@@ -71,25 +71,25 @@ cluster.shutdown();
 drpc.shutdown();
 ```
 
-First you create a `LocalDRPC` object. This object simulates a DRPC server in process, just like how `LocalCluster` simulates a Storm cluster in process. Then you create the `LocalCluster` to run the topology in local mode. `LinearDRPCTopologyBuilder` has separate methods for creating local topologies and remote topologies. In local mode the `LocalDRPC` object does not bind to any ports so the topology needs to know about the object to communicate with it. This is why `createLocalTopology` takes in the `LocalDRPC` object as input.
+最初に`LocalDRPC`オブジェクトを作成します。このオブジェクトは、`LocalCluster`が処理中のStormクラスタをシミュレートするのと同様に、処理中のDRPCサーバをシミュレートします。次に、ローカルモードでトポロジを実行するために `LocalCluster`を作成します。`LinearDRPCTopologyBuilder`は、ローカルトポロジーとリモートトポロジーを作成するための別個のメソッドを持っています。ローカルモードでは、`LocalDRPC`オブジェクトはどのポートにもバインドしないので、トポロジは通信すべきオブジェクトを知る必要があります。これは、`createLocalTopology`が`LocalDRPC`オブジェクトを入力として取り込む理由です。
 
-After launching the topology, you can do DRPC invocations using the `execute` method on `LocalDRPC`.
+トポロジを起動した後、`LocalDRPC`で`execute`メソッドを使ってDRPC呼び出しを行うことができます。
 
 ### Remote mode DRPC
 
-Using DRPC on an actual cluster is also straightforward. There's three steps:
+実際のクラスタでDRPCを使用することも簡単です。3つのステップがあります:
 
-1. Launch DRPC server(s)
-2. Configure the locations of the DRPC servers
-3. Submit DRPC topologies to Storm cluster
+1. DRPCサーバーを起動します
+2. DRPCサーバーの場所を設定します
+3. DRPCトポロジをStormクラスタに送信する
 
-Launching a DRPC server can be done with the `storm` script and is just like launching Nimbus or the UI:
+DRPCサーバの起動は`storm`スクリプトで行うことができ、NimbusやUIを起動するのとだいたい同じです:
 
 ```
 bin/storm drpc
 ```
 
-Next, you need to configure your Storm cluster to know the locations of the DRPC server(s). This is how `DRPCSpout` knows from where to read function invocations. This can be done through the `storm.yaml` file or the topology configurations. Configuring this through the `storm.yaml` looks something like this:
+次に、DRPCサーバーの場所をStormクラスターに設定する必要があります。これは、`DRPCSpout`がどこから読み込みの関数呼び出しをするか知る方法です。これは、 `storm.yaml`ファイルまたはトポロジの設定によって行うことができます。`storm.yaml`でこれを設定すると、次のようになります:
 
 ```yaml
 drpc.servers:
@@ -97,28 +97,28 @@ drpc.servers:
   - "drpc2.foo.com"
 ```
 
-Finally, you launch DRPC topologies using `StormSubmitter` just like you launch any other topology. To run the above example in remote mode, you do something like this:
+最後に、他のトポロジーを起動するのと同じように、`StormSubmitter`を使用してDRPCトポロジを起動します。リモートモードで上記の例を実行するには、次のようにします:
 
 ```java
 StormSubmitter.submitTopology("exclamation-drpc", conf, builder.createRemoteTopology());
 ```
 
-`createRemoteTopology` is used to create topologies suitable for Storm clusters.
+`createRemoteTopology`は、ストームクラスタに適したトポロジを作成するために使用されます。
 
 ### A more complex example
 
-The exclamation DRPC example was a toy example for illustrating the concepts of DRPC. Let's look at a more complex example which really needs the parallelism a Storm cluster provides for computing the DRPC function. The example we'll look at is computing the reach of a URL on Twitter.
+exclamationを付けるDRPCの例は、DRPCの概念を説明するための簡単なものの例でした。ストーム・クラスタがDRPC機能を計算するために提供する並列処理が本当に必要な、より複雑な例を見てみましょう。ここでは、TwitterでURL​​のReachを計算する例を示します。
 
-The reach of a URL is the number of unique people exposed to a URL on Twitter. To compute reach, you need to:
+URLのReachとは、特定のURLが提示されたユニークユーザーの数です。リーチを計算するには、以下が必要です:
 
-1. Get all the people who tweeted the URL
-2. Get all the followers of all those people
-3. Unique the set of followers
-4. Count the unique set of followers
+1. あるURLをツイートしたすべての人を取得する
+2. その人たちのフォロワーを全て取得する
+3. そのフォロワーの集合を一意にする
+4. 一意になったフォロワーの数を数える
 
-A single reach computation can involve thousands of database calls and tens of millions of follower records during the computation. It's a really, really intense computation. As you're about to see, implementing this function on top of Storm is dead simple. On a single machine, reach can take minutes to compute; on a Storm cluster, you can compute reach for even the hardest URLs in a couple seconds.
+1回のReachの計算には、計算中に何千ものデータベース呼び出しと数千万のフォロワーの記録が含まれることがあります。それは実際には本当に激しい計算です。あなたが目にしているように、Stormの上にこの機能を実装するのは簡単ではありません。単一のマシンでは、Reachの計算に数分かかることがあります; Stormクラスターでは、数秒で最も難しいURLについてのReachを計算することができます。
 
-A sample reach topology is defined in storm-starter [here]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/ReachTopology.java). Here's how you define the reach topology:
+Reachを計算するトポロジのサンプルは、storm-starterの[ここ]({{page.git-blob-base}}/examples/storm-starter/src/jvm/org/apache/storm/starter/ReachTopology.java)で定義されていますeachを計算するトポロジを定義する方法は次のとおりです:
 
 ```java
 LinearDRPCTopologyBuilder builder = new LinearDRPCTopologyBuilder("reach");
@@ -131,14 +131,14 @@ builder.addBolt(new CountAggregator(), 2)
         .fieldsGrouping(new Fields("id"));
 ```
 
-The topology executes as four steps:
+トポロジは4つのステップで実行されます:
 
-1. `GetTweeters` gets the users who tweeted the URL. It transforms an input stream of `[id, url]` into an output stream of `[id, tweeter]`. Each `url` tuple will map to many `tweeter` tuples.
-2. `GetFollowers` gets the followers for the tweeters. It transforms an input stream of `[id, tweeter]` into an output stream of `[id, follower]`. Across all the tasks, there may of course be duplication of follower tuples when someone follows multiple people who tweeted the same URL.
-3. `PartialUniquer` groups the followers stream by the follower id. This has the effect of the same follower going to the same task. So each task of `PartialUniquer` will receive mutually independent sets of followers. Once `PartialUniquer` receives all the follower tuples directed at it for the request id, it emits the unique count of its subset of followers.
-4. Finally, `CountAggregator` receives the partial counts from each of the `PartialUniquer` tasks and sums them up to complete the reach computation.
+1. `GetTweeters`はURLをツイートしたユーザーを取得します。`[id, url]`の入力ストリームを`[id, tweeter]`の出力ストリームに変換します。各`url`タプルは複数の` tweeter`タプルにマップされます。
+2. `GetFollowers`はツイーターのフォロワーを取得します。`[id, tweeter]`の入力ストリームを`[id, follower]`の出力ストリームに変換します。すべてのタスクにわたって、同じURLをツイートした複数の人をフォローしている人がいると、フォロワータプルが重複することがあります。
+3. `PartialUniquer`は、フォロワーのストリームをフォロワーIDでグループ化します。これによって、同じフォロワーを同じタスクに集約せることができます。したがって、 `PartialUniquer`の各タスクは、互いにに独立したフォロワーのセットを受け取ります。`PartialUniquer`は、要求IDに対するすべてのフォロワーのタプルを受け取ると、そのフォロワーの部分集合に対する一意のカウントを出力します
+4. 最後に、`CountAggregator`は、`PartialUniquer`タスクのそれぞれから部分カウントを受け取り、それを合計してReachの計算が完了します
 
-Let's take a look at the `PartialUniquer` bolt:
+`PartialUniquer`のBoltを見てみましょう:
 
 ```java
 public class PartialUniquer extends BaseBatchBolt {
@@ -169,31 +169,31 @@ public class PartialUniquer extends BaseBatchBolt {
 }
 ```
 
-`PartialUniquer` implements `IBatchBolt` by extending `BaseBatchBolt`. A batch bolt provides a first class API to processing a batch of tuples as a concrete unit. A new instance of the batch bolt is created for each request id, and Storm takes care of cleaning up the instances when appropriate. 
+`PartialUniquer`は`BaseBatchBolt`を継承して`IBatchBolt`を実装します。バッチボルトは、具象的なまとまりとしてタプルのバッチを処理するためのファーストクラスのAPIを提供します。バッチボルトの新しいインスタンスが各要求IDごとに作成され、Stormは必要な場合にインスタンスをクリーンアップします。
 
-When `PartialUniquer` receives a follower tuple in the `execute` method, it adds it to the set for the request id in an internal `HashSet`. 
+`PartialUniquer`は、`execute`メソッドでフォロワーのタプルを受け取ると、それを内部の`HashSet`内のリクエストIDの集合に追加します。
 
-Batch bolts provide the `finishBatch` method which is called after all the tuples for this batch targeted at this task have been processed. In the callback, `PartialUniquer` emits a single tuple containing the unique count for its subset of follower ids.
+バッチボルトは、このタスクが対象とするバッチのすべてのタプルが処理された後に呼び出される`finishBatch`メソッドを提供します。そのコールバックでは、 `PartialUniquer`は、フォロワーIDのサブセットに対する一意としたカウントを含む単一のタプルを出力します。
 
-Under the hood, `CoordinatedBolt` is used to detect when a given bolt has received all of the tuples for any given request id. `CoordinatedBolt` makes use of direct streams to manage this coordination.
+内部的には、指定された要求IDに対して与えられたボルトがすべてのタプルを受け取ったことを検出するため`CoordinatedBolt`が使用されます。`CoordinatedBolt`は、この調整を管理するために直接ストリームを利用します。
 
-The rest of the topology should be self-explanatory. As you can see, every single step of the reach computation is done in parallel, and defining the DRPC topology was extremely simple.
+残りのトポロジは自明です。ご覧のように、Reach計算のすべてのステップが並行して行われ、DRPCトポロジの定義は非常に簡単でした。
 
 ### Non-linear DRPC topologies
 
-`LinearDRPCTopologyBuilder` only handles "linear" DRPC topologies, where the computation is expressed as a sequence of steps (like reach). It's not hard to imagine functions that would require a more complicated topology with branching and merging of the bolts. For now, to do this you'll need to drop down into using `CoordinatedBolt` directly. Be sure to talk about your use case for non-linear DRPC topologies on the mailing list to inform the construction of more general abstractions for DRPC topologies.
+`LinearDRPCTopologyBuilder`は、"linear"なDRPCトポロジしか処理しません。ここで、計算は一連のステップ（リーチなど）として表現されます。Boltの分岐やマージなど複雑なトポロジを必要とする機能を想像するのは難しいことではありません。今のところ、これを行うには `CoordinatedBolt`を直接使用する必要があります。 DRPCトポロジのより一般的な抽象概念をつくるために、メーリングリスト上でnon-linearなDRPCトポロジのユースケースについて話し合ってください。
 
 ### How LinearDRPCTopologyBuilder works
 
-* DRPCSpout emits [args, return-info]. return-info is the host and port of the DRPC server as well as the id generated by the DRPC server
-* constructs a topology comprising of:
+* DRPCSpoutは[args, return-info]を発行します。return-infoは、DRPCサーバーのホストとポート、およびDRPCサーバーによって生成されたIDです
+* トポロジを構築するには以下のものが使用できます:
   * DRPCSpout
-  * PrepareRequest (generates a request id and creates a stream for the return info and a stream for the args)
-  * CoordinatedBolt wrappers and direct groupings
-  * JoinResult (joins the result with the return info)
-  * ReturnResult (connects to the DRPC server and returns the result)
-* LinearDRPCTopologyBuilder is a good example of a higher level abstraction built on top of Storm's primitives
+  * PrepareRequest (要求IDを生成し、return-infoのストリームとargsのストリームを作成します)
+  * CoordinatedBoltのラッパーと直接グループ化
+  * JoinResult (戻り値とreturn-infoを結合する)
+  * ReturnResult (DRPCサーバーに接続して結果を返します)
+* LinearDRPCTopologyBuilderは、Stormのプリミティブの上に構築されたより高いレベルの抽象化の良い例です
 
 ### Advanced
-* KeyedFairBolt for weaving the processing of multiple requests at the same time
-* How to use `CoordinatedBolt` directly
+* 複数のリクエストの処理を同時に行えるKeyedFairBolt
+*  `CoordinatedBolt`を直接使う方法
