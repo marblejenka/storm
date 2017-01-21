@@ -16,7 +16,6 @@ union ComponentObject {
 ```
 
 Python DSLの場合は、"2"と "3"を使いたいでしょう。ShellComponentでは、そのコンポーネント（Pythonコードなど）を実行するためのスクリプトを指定することができます。JavaObjectでは、コンポーネントのネイティブJavaスパウトとボルトを指定できます（また、スパムやボルトを作成するためにリフレクションを使用します）。
-For a Python DSL, you would want to make use of "2" and "3". ShellComponent lets you specify a script to run that compone
 
 トポロジのsubmitに役立つ"storm shell"コマンドがあります。その使い方は次のとおりです:
 
