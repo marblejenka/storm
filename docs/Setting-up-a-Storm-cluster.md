@@ -3,46 +3,46 @@ title: Setting up a Storm Cluster
 layout: documentation
 documentation: true
 ---
-This page outlines the steps for getting a Storm cluster up and running. If you're on AWS, you should check out the [storm-deploy](https://github.com/nathanmarz/storm-deploy/wiki) project. [storm-deploy](https://github.com/nathanmarz/storm-deploy/wiki) completely automates the provisioning, configuration, and installation of Storm clusters on EC2. It also sets up Ganglia for you so you can monitor CPU, disk, and network usage.
+このページでは、Stormクラスタを起動して実行する手順を説明します。AWSを利用している場合は、[storm-deploy](https://github.com/nathanmarz/storm-deploy/wiki)プロジェクトをチェックしてください。[storm-deploy](https://github.com/nathanmarz/storm-deploy/wiki)は、EC2上のStormクラスタのプロビジョニング、設定、インストールを完全に自動化します。また、CPU、ディスク、ネットワークの使用状況を監視できるように、Gangliaを設定します。
 
-If you run into difficulties with your Storm cluster, first check for a solution is in the [Troubleshooting](Troubleshooting.html) page. Otherwise, email the mailing list.
+Stormクラスタで問題が発生した場合、最初に解決策が[トラブルシューティング](Troubleshooting.html)ページにあるかどうかを確認してください。なければ、メーリングリストにメールしてください。
 
-Here's a summary of the steps for setting up a Storm cluster:
+Stormクラスタを設定する手順の概要を以下に示します:
 
-1. Set up a Zookeeper cluster
-2. Install dependencies on Nimbus and worker machines
-3. Download and extract a Storm release to Nimbus and worker machines
-4. Fill in mandatory configurations into storm.yaml
-5. Launch daemons under supervision using "storm" script and a supervisor of your choice
+1. Zookeeperクラスタをセットアップする
+2. Nimbusとワーカーマシンに依存関係をインストールする
+3. NimbusとワーカーマシンにStormリリースをダウンロードして解凍する
+4. 必須の設定をstorm.yamlに入力する
+5. "storm"スクリプトを使ってスーパーバイザーとその監視下に置かれるデーモンを起動する
 
 ### Set up a Zookeeper cluster
 
-Storm uses Zookeeper for coordinating the cluster. Zookeeper **is not** used for message passing, so the load Storm places on Zookeeper is quite low. Single node Zookeeper clusters should be sufficient for most cases, but if you want failover or are deploying large Storm clusters you may want larger Zookeeper clusters. Instructions for deploying Zookeeper are [here](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html). 
+StormはZookeeperを使用してクラスタを調整します。Zookeeperはメッセージの受け渡しには使用**されない**ので、StormにおけるZookeeperの負荷はかなり低くなります。ほとんどの場合、単一ノードのZookeeperクラスタで十分ですが、フェールオーバーが必要な場合や、大きなStormクラスタを展開する場合は、より大きなZookeeperクラスタが必要な場合があります。Zookeeperを配備する手順は[こちら](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html)です。
 
-A few notes about Zookeeper deployment:
+Zookeeper導入に関するいくつかの注意点:
 
-1. It's critical that you run Zookeeper under supervision, since Zookeeper is fail-fast and will exit the process if it encounters any error case. See [here](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html#sc_supervision) for more details. 
-2. It's critical that you set up a cron to compact Zookeeper's data and transaction logs. The Zookeeper daemon does not do this on its own, and if you don't set up a cron, Zookeeper will quickly run out of disk space. See [here](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html#sc_maintenance) for more details.
+1. Zookeeperはフェイル・ファストであり、エラーが発生した場合にプロセスを終了するので、監視のもとでZookeeperを実行することが重要です。詳細については、[こちら](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html#sc_supervision)を参照してください。
+2. Zookeeperのデータとトランザクションログを圧縮にするためにcronを設定することが重要です。Zookeeperデーモンはこれを単独では実行しません。また、cronを設定しないと、Zookeeperはすぐにディスク領域を使い果たします。詳細については、[こちら](http://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html#sc_maintenance)を参照してください。
 
 ### Install dependencies on Nimbus and worker machines
 
-Next you need to install Storm's dependencies on Nimbus and the worker machines. These are:
+次に、Nimbusとワーカーマシンに以下のStormの依存関係をインストールする必要があります:
 
 1. Java 7
 2. Python 2.6.6
 
-These are the versions of the dependencies that have been tested with Storm. Storm may or may not work with different versions of Java and/or Python.
+これらはStormでテストされた依存関係のバージョンです。StormはJavaやPythonの異なるバージョンで動作する場合と動作しない場合があります。
 
 
 ### Download and extract a Storm release to Nimbus and worker machines
 
-Next, download a Storm release and extract the zip file somewhere on Nimbus and each of the worker machines. The Storm releases can be downloaded [from here](http://github.com/apache/storm/releases).
+次に、Stormリリースをダウンロードし、Nimbusと各ワーカーマシンのどこかでzipファイルを解凍します。Stormのリリースは[こちらから](http://github.com/apache/storm/releases)からダウンロードできます。
 
 ### Fill in mandatory configurations into storm.yaml
 
-The Storm release contains a file at `conf/storm.yaml` that configures the Storm daemons. You can see the default configuration values [here]({{page.git-blob-base}}/conf/defaults.yaml). storm.yaml overrides anything in defaults.yaml. There's a few configurations that are mandatory to get a working cluster:
+Stormリリースの`conf/storm.yaml`がStormデーモンを設定するファイルです。デフォルトの設定値は[ここ]({{page.git-blob-base}}/conf/defaults.yaml)で見ることができます。storm.yamlはdefaults.yaml内のものをオーバーライドします。クラスタを稼働させるために必須の設定がいくつかあります:
 
-1) **storm.zookeeper.servers**: This is a list of the hosts in the Zookeeper cluster for your Storm cluster. It should look something like:
+1) **storm.zookeeper.servers**: あなたのStormクラスタ用のZookeeperクラスタ内のホストのリストです。次のようになります:
 
 ```yaml
 storm.zookeeper.servers:
@@ -50,29 +50,30 @@ storm.zookeeper.servers:
   - "555.666.777.888"
 ```
 
-If the port that your Zookeeper cluster uses is different than the default, you should set **storm.zookeeper.port** as well.
+Zookeeperクラスタが使用するポートがデフォルトと異なる場合は、**storm.zookeeper.port**も設定する必要があります。
 
-2) **storm.local.dir**: The Nimbus and Supervisor daemons require a directory on the local disk to store small amounts of state (like jars, confs, and things like that).
- You should create that directory on each machine, give it proper permissions, and then fill in the directory location using this config. For example:
+2) **storm.local.dir**: NimbusとSupervisorのデーモンは、小さな状態（jar、confsなど）を格納するために、ローカルディスク上のディレクトリを必要とします。
+各マシンにそのディレクトリを作成し、適切な権限を与えてから、この設定にディレクトリの場所を入れておく必要があります。例えば:
 
 ```yaml
 storm.local.dir: "/mnt/storm"
 ```
-If you run storm on windows,it could be:
+あなたがWindows上でStormを走らせると、それは次のようになります:
+
 ```yaml
 storm.local.dir: "C:\\storm-local"
 ```
-If you use a relative path,it will be relative to where you installed storm(STORM_HOME).
-You can leave it empty with default value `$STORM_HOME/storm-local`
+相対パスを使用すると、stormをインストールした場所(STORM_HOME)からの相対的なパスになります。
+空にするとデフォルト値`$STORM_HOME/storm-local`が使用されます。
 
-3) **nimbus.seeds**: The worker nodes need to know which machines are the candidate of master in order to download topology jars and confs. For example:
+3) **nimbus.seeds**: ワーカーは、トポロジーのjarとconfをダウンロードするために、どのマシンがマスターの候補かを知る必要があります。例えば:
 
 ```yaml
 nimbus.seeds: ["111.222.333.44"]
 ```
-You're encouraged to fill out the value to list of **machine's FQDN**. If you want to set up Nimbus H/A, you have to address all machines' FQDN which run nimbus. You may want to leave it to default value when you just want to set up 'pseudo-distributed' cluster, but you're still encouraged to fill out FQDN.
+**マシンのFQDN**の値を記入することをお勧めします。Nimbus H/Aを設定する場合は、すべてのマシンのFQDNをアドレス指定する必要があります。'疑似分散'クラスタを設定するだけの場合は、デフォルト値のままでも構いませんが、それでもFQDNを記入することをお勧めします。
 
-4) **supervisor.slots.ports**: For each worker machine, you configure how many workers run on that machine with this config. Each worker uses a single port for receiving messages, and this setting defines which ports are open for use. If you define five ports here, then Storm will allocate up to five workers to run on this machine. If you define three ports, Storm will only run up to three. By default, this setting is configured to run 4 workers on the ports 6700, 6701, 6702, and 6703. For example:
+4) **supervisor.slots.ports**: ワーカーマシンごとに、このマシンで実行するワーカーの数を設定します。各ワーカーはメッセージを受信するために単一のポートを使用し、この設定では、使用するために開いているポートを定義します。ここに5つのポートを定義すると、Stormはこのマシン上で実行するワーカーを5つまで割り当てます。 3つのポートを定義すると、Stormは最大3つまでしか動作させません。デフォルトでは、この設定はポート6700,6701,6702および6703で4つのワーカーを実行するように設定されています:
 
 ```yaml
 supervisor.slots.ports:
@@ -84,18 +85,18 @@ supervisor.slots.ports:
 
 ### Monitoring Health of Supervisors
 
-Storm provides a mechanism by which administrators can configure the supervisor to run administrator supplied scripts periodically to determine if a node is healthy or not. Administrators can have the supervisor determine if the node is in a healthy state by performing any checks of their choice in scripts located in storm.health.check.dir. If a script detects the node to be in an unhealthy state, it must print a line to standard output beginning with the string ERROR. The supervisor will periodically run the scripts in the health check dir and check the output. If the script’s output contains the string ERROR, as described above, the supervisor will shut down any workers and exit. 
+Stormは、ノードが正常であるかどうかを判断するために、管理者が提供するスクリプトを定期的に実行するようスーパーバイザを設定できるメカニズムを提供しています。管理者は、スーパバイザにstorm.health.check.dirにあるスクリプトで任意のチェックを実行させることによって、ノードが健全な状態にあるかどうかを判断させることができます。スクリプトがノードが不健全な状態になったことを検出する際に、文字列ERRORで始まる行を標準出力に出力する必要があります。スーパーバイザは定期的にヘルスチェックディレクトリ内のスクリプトを実行し、出力をチェックします。上記のように、スクリプトの出力にERRORという文字列が含まれている場合、スーパーバイザはワーカーをシャットダウンして終了します。
 
-If the supervisor is running with supervision "/bin/storm node-health-check" can be called to determine if the supervisor should be launched or if the node is unhealthy.
+スーパバイザが"/bin/storm node-health-check"による監視とともに実行されている場合、スーパバイザはそのスクリプトを使って、自身を起動するか、あるいはノードが正常かを判断できます。
 
-The health check directory location can be configured with:
+ヘルスチェックディレクトリの場所は、次のように設定できます:
 
 ```yaml
 storm.health.check.dir: "healthchecks"
-
 ```
-The scripts must have execute permissions.
-The time to allow any given healthcheck script to run before it is marked failed due to timeout can be configured with:
+
+スクリプトには実行権限が必要です。
+特定のヘルスチェックスクリプトがタイムアウトにより失敗したとマークされるまでの時間は、次のように設定できます:
 
 ```yaml
 storm.health.check.timeout.ms: 5000
@@ -103,15 +104,14 @@ storm.health.check.timeout.ms: 5000
 
 ### Configure external libraries and environmental variables (optional)
 
-If you need support from external libraries or custom plugins, you can place such jars into the extlib/ and extlib-daemon/ directories. Note that the extlib-daemon/ directory stores jars used only by daemons (Nimbus, Supervisor, DRPC, UI, Logviewer), e.g., HDFS and customized scheduling libraries. Accordingly, two environmental variables STORM_EXT_CLASSPATH and STORM_EXT_CLASSPATH_DAEMON can be configured by users for including the external classpath and daemon-only external classpath.
-
+外部ライブラリやカスタムプラグインのサポートが必要な場合は、そのようなjarファイルをextlib/やextlib-daemon/ディレクトリに置くことができます。extlib-daemon/ディレクトリには、デーモン（Nimbus、Supervisor、DRPC、UI、Logviewer）だけが使用するHDFSやカスタマイズされたスケジューリングライブラリなどが格納されています。したがって、2つの環境変数STORM_EXT_CLASSPATHとSTORM_EXT_CLASSPATH_DAEMONは、外部クラスパスとデーモンのみの外部クラスパスを含むようにユーザーが構成できます。
 
 ### Launch daemons under supervision using "storm" script and a supervisor of your choice
 
-The last step is to launch all the Storm daemons. It is critical that you run each of these daemons under supervision. Storm is a __fail-fast__ system which means the processes will halt whenever an unexpected error is encountered. Storm is designed so that it can safely halt at any point and recover correctly when the process is restarted. This is why Storm keeps no state in-process -- if Nimbus or the Supervisors restart, the running topologies are unaffected. Here's how to run the Storm daemons:
+最後のステップは、すべてのStormデーモンを起動することです。これらのデーモンのそれぞれを監視下で実行することが重要です。Stormは予期しないエラーが発生した場合にプロセスが停止する__fail-fast__システムです。Stormは、任意の時点で安全に停止し、プロセスの再起動時に正しく回復できるように設計されています。これは、Stormが進行中の状態を保持していない理由です -- Nimbusまたはスーパーバイザが再起動した場合、実行中のトポロジは影響を受けません。Stormデーモンを実行する方法は次のとおりです:
 
-1. **Nimbus**: Run the command "bin/storm nimbus" under supervision on the master machine.
-2. **Supervisor**: Run the command "bin/storm supervisor" under supervision on each worker machine. The supervisor daemon is responsible for starting and stopping worker processes on that machine.
-3. **UI**: Run the Storm UI (a site you can access from the browser that gives diagnostics on the cluster and topologies) by running the command "bin/storm ui" under supervision. The UI can be accessed by navigating your web browser to http://{ui host}:8080. 
+1. **Nimbus**: マスタマシンにおいて監視のもと"bin/storm nimbus"コマンドを実行します。
+2. **Supervisor**: 各ワーカーマシンにおいて監督のもと"bin/storm supervisor"コマンドを実行します。スーパバイザデーモンは、そのマシン上のワーカープロセスの起動と停止を行います。
+3. **UI**: 監督のもとでコマンド"bin/storm ui"を実行することによって、Storm UI（クラスタとトポロジ上の診断を提供するブラウザからアクセスできるサイト）を実行します。 Uは、Webブラウザでhttp://{ui host}:8080を開くことでアクセスできます。
 
-As you can see, running the daemons is very straightforward. The daemons will log to the logs/ directory in wherever you extracted the Storm release.
+ご覧のとおり、デーモンの実行は非常に簡単です。デーモンは、Stormリリースを解凍した場所のlogs/ディレクトリにログを記録します。
