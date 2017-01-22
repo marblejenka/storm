@@ -37,8 +37,8 @@ module Releases
         puts "branch: #{git_branch}"
         for page in site.pages do
           page.data['version'] = release_name;
-          page.data['git-tree-base'] = "http://github.com/apache/storm/tree/#{git_branch}"
-          page.data['git-blob-base'] = "http://github.com/apache/storm/blob/#{git_branch}"
+          page.data['git-tree-base'] = "http://github.com/apache/storm/tree/1.x-branch"
+          page.data['git-blob-base'] = "http://github.com/apache/storm/blob/1.x-branch"
         end
         return
       end
