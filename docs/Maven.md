@@ -3,7 +3,7 @@ title: Maven
 layout: documentation
 documentation: true
 ---
-To develop topologies, you'll need the Storm jars on your classpath. You should either include the unpacked jars in the classpath for your project or use Maven to include Storm as a development dependency. Storm is hosted on Maven Central. To include Storm in your project as a development dependency, add the following to your pom.xml:
+トポロジを開発するには、クラスパス上にStorm jarが必要です。プロジェクトのクラスパスに解凍されたjarを含めるか、Mavenを使用して開発に必要な依存関係としてStormを取り込む必要があります。StormはMaven Centralにホストされています。依存関係としてStormをプロジェクトに組み込むには、pom.xmlに次の行を追加します:
 
 
 ```xml
@@ -15,8 +15,8 @@ To develop topologies, you'll need the Storm jars on your classpath. You should 
 </dependency>
 ```
 
-[Here's an example]({{page.git-blob-base}}/examples/storm-starter/pom.xml) of a pom.xml for a Storm project.
+[これが]({{page.git-blob-base}}/examples/storm-starter/pom.xml)Stormプロジェクトのpom.xmlの例です。
 
 ### Developing Storm
 
-Please refer to [DEVELOPER.md]({{page.git-blob-base}}/DEVELOPER.md) for more details.
+詳細については、[DEVELOPER.md]({{page.git-blob-base}}/DEVELOPER.md) を参照してください。
