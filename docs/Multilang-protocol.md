@@ -3,53 +3,52 @@ title: Multi-Lang Protocol
 layout: documentation
 documentation: true
 ---
-This page explains the multilang protocol as of Storm 0.7.1. Versions prior to 0.7.1 used a somewhat different protocol, documented [here](Storm-multi-language-protocol-(versions-0.7.0-and-below\).html).
+このページでは、Storm 0.7.1のmultilangプロトコルを説明します。0.7.1より前のバージョンでは、[ここ](Storm-multi-language-protocol-\(versions-0.7.0-and-below\).html)に記載されているやや異なるプロトコルを使用していました。
 
 # Storm Multi-Language Protocol
 
 ## Shell Components
 
-Support for multiple languages is implemented via the ShellBolt,
-ShellSpout, and ShellProcess classes.  These classes implement the
-IBolt and ISpout interfaces and the protocol for executing a script or
-program via the shell using Java's ProcessBuilder class.
+multipleのサポートは、ShellBolt、ShellSpout、およびShellProcessクラスを介して実装されています。
+これらのクラスは、JavaのProcessBuilderクラスを使用し、
+シェルを介してスクリプトまたはプログラムを実行するための
+IBoltおよびISpoutインターフェースとプロトコルを実装します。
 
 ## Output fields
 
-Output fields are part of the Thrift definition of the topology. This means that when you multilang in Java, you need to create a bolt that extends ShellBolt, implements IRichBolt, and declare the fields in `declareOutputFields` (similarly for ShellSpout).
+出力フィールドは、トポロジのThrift定義の一部です。つまり、Javaでmultilangする場合、ShellBoltを継承し、IRichBoltを実装し、 `declareOutputFields`（ShellSpoutと同様）でフィールドを宣言するBoltを作成する必要があります。
 
-You can learn more about this on [Concepts](Concepts.html)
+これについての詳細は、[Concepts](Concepts.html)を参照してください。
 
 ## Protocol Preamble
 
-A simple protocol is implemented via the STDIN and STDOUT of the
-executed script or program. All data exchanged with the process is
-encoded in JSON, making support possible for pretty much any language.
+単純なプロトコルは、実行されたスクリプトまたはプログラムのSTDINおよびSTDOUTを介して実装されます。
+プロセスと交換されるすべてのデータはJSONでエンコードされているため、
+ほぼすべての言語でサポートが可能です。
 
 # Packaging Your Stuff
 
-To run a shell component on a cluster, the scripts that are shelled
-out to must be in the `resources/` directory within the jar submitted
-to the master.
+クラスタ上でシェルコンポーネントを実行するには、
+シェルに書き出されるスクリプトが、
+マスターにsubmitされたjarファイル内の`resources/`ディレクトリになければなりません。
 
-However, during development or testing on a local machine, the resources
-directory just needs to be on the classpath.
+しかし、ローカルマシン上での開発やテストでは、
+リソースディレクトリはクラスパス上にある必要があります
 
 ## The Protocol
 
-Notes:
+注意:
 
-* Both ends of this protocol use a line-reading mechanism, so be sure to
-trim off newlines from the input and to append them to your output.
-* All JSON inputs and outputs are terminated by a single line containing "end". Note that this delimiter is not itself JSON encoded.
-* The bullet points below are written from the perspective of the script writer's
-STDIN and STDOUT.
+* いずれのプロトコルも行の読み取り機構を使用しているので、
+入力から改行を削除して出力に追加するようにしてください。
+* すべてのJSON入力と出力は"end"を含む1行で終了します。この区切り文字自体はJSONエンコードされていないことに注意してください。
+* 以下の箇条書きは、スクリプト作成者のSTDINとSTDOUTの観点から書かれています。
 
 ### Initial Handshake
 
-The initial handshake is the same for both types of shell components:
+初期化のハンドシェイクは、両方のタイプのシェルコンポーネントで同じです:
 
-* STDIN: Setup info. This is a JSON object with the Storm configuration, a PID directory, and a topology context, like this:
+* STDIN: セットアップ情報。これはStorm設定、PIDディレクトリ、およびトポロジコンテキストを持つJSONオブジェクトです:
 
 ```
 {
@@ -91,51 +90,50 @@ The initial handshake is the same for both types of shell components:
 }
 ```
 
-Your script should create an empty file named with its PID in this directory. e.g.
-the PID is 1234, so an empty file named 1234 is created in the directory. This
-file lets the supervisor know the PID so it can shutdown the process later on.
+スクリプトは、このディレクトリにPIDで指定された空のファイルを作成する必要があります。
+例えばPIDは1234なので、1234という名前の空のファイルがディレクトリに作成されます。
+このファイルは、後でプロセスをシャットダウンできるようにスーパーバイザにPIDを知らせるものです。
 
-As of Storm 0.10.0, the context sent by Storm to shell components has been
-enhanced substantially to include all aspects of the topology context available
-to JVM components.  One key addition is the ability to determine a shell
-component's source and targets (i.e., inputs and outputs) in the topology via
-the `stream->target->grouping` and `source->stream->grouping` dictionaries.  At
-the innermost level of these nested dictionaries, groupings are represented as
-a dictionary that minimally has a `type` key, but can also have a `fields` key
-to specify which fields are involved in a `FIELDS` grouping.
+Storm 0.10.0以降、Stormによってシェルコンポーネントに送信されたコンテキストは、
+JVMコンポーネントで使用可能なトポロジコンテキストのすべての側面を含むように大幅に強化されました。
+1つの重要な追加は、`stream->target->grouping`および`source->stream->grouping`のディクショナリを介して、
+トポロジ内のシェルコンポーネントのソースおよびターゲット（すなわち入力および出力）を決定する能力です。
+これらのネストされたディクショナリの最も内側のレベルでは、
+グループ化は最小限の`type`キーを持つディクショナリとして表現されますが、
+`FIELD`グルーピングにどのフィールドを含めるか指定する`fields`キーを持つこともできます。
 
-* STDOUT: Your PID, in a JSON object, like `{"pid": 1234}`. The shell component will log the PID to its log.
 
-What happens next depends on the type of component:
+* STDOUT: あなたのPIDは`{"pid": 1234}`のようなJSONオブジェクトにあります。シェルコンポーネントはPIDをログに記録します。
+
+次にやるべきことは、コンポーネントのタイプによって異なります:
 
 ### Spouts
 
-Shell spouts are synchronous. The rest happens in a while(true) loop:
+シェルスパウトは同期します。残りはwhile(true)内で実行されます：
 
-* STDIN: Either a next, ack, or fail command.
+* STDIN: next、ack、またはfailコマンドのいずれかです。
 
-"next" is the equivalent of ISpout's `nextTuple`. It looks like:
+"next"はISpoutの`nextTuple`に相当します。それは次のように見えます:
 
 ```
 {"command": "next"}
 ```
 
-"ack" looks like:
+"ack"は次のようになります:
 
 ```
 {"command": "ack", "id": "1231231"}
 ```
 
-"fail" looks like:
+"fail"は次のようになります:
 
 ```
 {"command": "fail", "id": "1231231"}
 ```
 
-* STDOUT: The results of your spout for the previous command. This can
-  be a sequence of emits and logs.
+* STDOUT: 前のコマンドのSpoutの結果。これは、一連のemitおよびlogにすることができます。
 
-An emit looks like:
+emitは次のようになります:
 
 ```
 {
@@ -152,9 +150,9 @@ An emit looks like:
 }
 ```
 
-If not doing an emit direct, you will immediately receive the task ids to which the tuple was emitted on STDIN as a JSON array.
+直接的にemitを実行しないと、タプルがJSON配列としてSTDINにemitされたタスクIDをすぐに受け取ることになります。
 
-A "log" will log a message in the worker log. It looks like:
+"log"はワーカーログにメッセージを記録します。それは次のように見えます:
 
 ```
 {
@@ -164,22 +162,21 @@ A "log" will log a message in the worker log. It looks like:
 }
 ```
 
-* STDOUT: a "sync" command ends the sequence of emits and logs. It looks like:
+* STDOUT: "sync"コマンドは、emitとlogのシーケンスを終了します。それは次のように見えます:
 
 ```
 {"command": "sync"}
 ```
 
-After you sync, ShellSpout will not read your output until it sends another next, ack, or fail command.
+syncした後、ShellSpoutは別のnext、ack、またはfailコマンドを送信するまで、出力を読み込みません。
 
-Note that, similarly to ISpout, all of the spouts in the worker will be locked up after a next, ack, or fail, until you sync. Also like ISpout, if you have no tuples to emit for a next, you should sleep for a small amount of time before syncing. ShellSpout will not automatically sleep for you.
-
+ISpoutと同様に、ワーカーのすべてのスパウトは、syncするまでnext、ack、またはfailの後にロックされることに注意してください。また、ISpoutのように、次にemitするタプルがない場合は、同期する前に少しの時間スリープ状態にする必要があります。ShellSpoutは自動的にあなたのためにスリープしません。
 
 ### Bolts
 
-The shell bolt protocol is asynchronous. You will receive tuples on STDIN as soon as they are available, and you may emit, ack, and fail, and log at any time by writing to STDOUT, as follows:
+シェルボルトのプロトコルは非同期です。STDINが利用可能になるとすぐにタプルを受け取り、次のようにSTDOUTにemit, ack, fail, logを書き込むことができます:
 
-* STDIN: A tuple! This is a JSON encoded structure like this:
+* STDIN: タプル! これは次のようなJSONエンコードされた構造です:
 
 ```
 {
@@ -196,7 +193,7 @@ The shell bolt protocol is asynchronous. You will receive tuples on STDIN as soo
 }
 ```
 
-* STDOUT: An ack, fail, emit, or log. Emits look like:
+* STDOUT: emit, ack, fail, またはlogです。emitは次のようになります:
 
 ```
 {
@@ -212,15 +209,12 @@ The shell bolt protocol is asynchronous. You will receive tuples on STDIN as soo
 }
 ```
 
-If not doing an emit direct, you will receive the task ids to which
-the tuple was emitted on STDIN as a JSON array. Note that, due to the
-asynchronous nature of the shell bolt protocol, when you read after
-emitting, you may not receive the task ids. You may instead read the
-task ids for a previous emit or a new tuple to process. You will
-receive the task id lists in the same order as their corresponding
-emits, however.
+直接的にemitを実行しない場合は、タプルがJSON配列としてSTDINにemitされたタスクIDを受け取ります。
+シェルボルトプロトコルの非同期性のため、emit後に読み取っても、タスクIDが受信されないことがあります。
+代わりに、以前のemitまたは処理すべき新しいタプルのタスクIDを読み取ります。
+ただし、タスクIDのリストは、対応するemitと同じ順序で受け取ることができます。
 
-An ack looks like:
+ackは次のようになります:
 
 ```
 {
@@ -230,7 +224,7 @@ An ack looks like:
 }
 ```
 
-A fail looks like:
+failは次のようになります:
 
 ```
 {
@@ -240,7 +234,7 @@ A fail looks like:
 }
 ```
 
-A "log" will log a message in the worker log. It looks like:
+"log"はワーカーログにメッセージを記録します。それは次のようになります:
 
 ```
 {
@@ -250,27 +244,26 @@ A "log" will log a message in the worker log. It looks like:
 }
 ```
 
-* Note that, as of version 0.7.1, there is no longer any need for a
-  shell bolt to 'sync'.
+* バージョン0.7.1以降、
+シェルボルトを'sync'する必要はもうありません。
 
 ### Handling Heartbeats (0.9.3 and later)
 
-As of Storm 0.9.3, heartbeats have been between ShellSpout/ShellBolt and their
-multi-lang subprocesses to detect hanging/zombie subprocesses.  Any libraries
-for interfacing with Storm via multi-lang must take the following actions
-regarding hearbeats:
+Storm 0.9.3以降、ハングしたりゾンビになってしまうサブプロセスを検出するために、
+ShellSpout/ShellBoltとmulti-langサブプロセスの間でハートビートが行われています。
+multi-langを介してStormと接続するためのライブラリは、
+ハートビートに関する以下のアクションを実行する必要があります:
 
 #### Spout
 
-Shell spouts are synchronous, so subprocesses always send `sync` commands at the
-end of `next()`,  so you should not have to do much to support heartbeats for
-spouts.  That said, you must not let subprocesses sleep more than the worker
-timeout during `next()`.
+シェルスパウトは同期しているので、サブプロセスは常に`next()`の最後に`sync`コマンドを送ります。
+したがって、Spoutでハートビートをサポートするために多くのことをする必要はありません。
+言い換えれば、`next()`中にサブプロセスをワーカーのタイムアウトよりも長くsleepさせてはいけません。
 
 #### Bolt
 
-Shell bolts are asynchronous, so a ShellBolt will send heartbeat tuples to its
-subprocess periodically.  Heartbeat tuple looks like:
+シェルボルトは非同期であるため、ShellBoltはハートビートタプルをそのサブプロセスに定期的に送信します。
+ハートビートタプルは次のようになります:
 
 ```
 {
@@ -283,5 +276,4 @@ subprocess periodically.  Heartbeat tuple looks like:
 }
 ```
 
-When subprocess receives heartbeat tuple, it must send a `sync` command back to
-ShellBolt.
+サブプロセスがハートビートタプルを受信すると、`sync`コマンドをShellBoltに送り返す必要があります。
